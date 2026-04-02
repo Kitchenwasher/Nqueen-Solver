@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
+import { useHardwareProfile } from "@/hooks/use-hardware-profile";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type SolverAlgorithm } from "@/types/chessboard";
@@ -59,6 +60,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     setQueenCells,
     setActiveCell
   });
+  const { recommendation } = useHardwareProfile();
 
   const queens = useMemo(() => new Set(queenCells), [queenCells]);
   const attackedCells = useMemo(() => getAttackedCells(queens, boardSize), [boardSize, queens]);
@@ -145,6 +147,23 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     },
     [solver]
   );
+
+  const handleApplyRecommendedSolver = useCallback(() => {
+    if (solver.isBusy) {
+      return;
+    }
+
+    const recommended = recommendation.recommendedAlgorithm;
+    solver.reset();
+    solver.setAlgorithm(recommended);
+
+    if (recommended === "parallel") {
+      solver.setMode("auto");
+      solver.setSplitDepthMode("auto");
+    }
+
+    setValidationOrigin("live");
+  }, [recommendation.recommendedAlgorithm, solver]);
 
   const statusBadgeClasses =
     validation.status === "valid"
@@ -281,6 +300,9 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   disabled={solver.isBusy}
                 >
                   Parallel Solver
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleApplyRecommendedSolver} disabled={solver.isBusy}>
+                  Apply Recommended Solver
                 </Button>
               </div>
 

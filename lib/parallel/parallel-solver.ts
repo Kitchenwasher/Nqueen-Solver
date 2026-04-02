@@ -25,6 +25,7 @@ type RunParallelOptions = {
   findAll: boolean;
   symmetryEnabled?: boolean;
   searchStrategy?: SearchStrategy;
+  preferredWorkerCount?: number;
   splitDepthMode?: "auto" | "manual";
   manualSplitDepth?: 0 | 1 | 2;
   maxStoredSolutions: number;
@@ -37,9 +38,14 @@ function bitToCol(bit: number) {
   return Math.log2(bit) | 0;
 }
 
-function safeWorkerCount(taskCount: number) {
+function safeWorkerCount(taskCount: number, preferredWorkerCount?: number) {
   const hardware = typeof navigator !== "undefined" ? navigator.hardwareConcurrency ?? 4 : 4;
-  return Math.max(1, Math.min(Math.max(hardware - 2, 1), 16, taskCount));
+  const safeByHardware = Math.max(1, Math.min(Math.max(hardware - 2, 1), 16));
+  const preferred =
+    typeof preferredWorkerCount === "number" && Number.isFinite(preferredWorkerCount)
+      ? Math.max(1, Math.min(Math.floor(preferredWorkerCount), 32))
+      : safeByHardware;
+  return Math.max(1, Math.min(preferred, taskCount));
 }
 
 function getAdaptiveSplitDepth(n: number): 0 | 1 | 2 {
@@ -169,6 +175,7 @@ export async function runParallelNQueenSolver({
   findAll,
   symmetryEnabled = false,
   searchStrategy = "left-to-right",
+  preferredWorkerCount,
   splitDepthMode = "auto",
   manualSplitDepth = 1,
   maxStoredSolutions,
@@ -179,7 +186,7 @@ export async function runParallelNQueenSolver({
   void searchStrategy;
   const splitDepthUsed = splitDepthMode === "auto" ? getAdaptiveSplitDepth(n) : clampSplitDepth(manualSplitDepth);
   const tasks = generateParallelTasks(n, findAll, maxStoredSolutions, symmetryEnabled, splitDepthUsed);
-  const workerCount = safeWorkerCount(tasks.length);
+  const workerCount = safeWorkerCount(tasks.length, preferredWorkerCount);
   const pool = new ParallelWorkerPool(workerCount);
   const workerTaskCounts = Array.from({ length: workerCount }, () => 0);
 
