@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -10,6 +10,11 @@ import { DashboardAppShell } from "@/components/dashboard/dashboard-app-shell";
 import { EducationPanel } from "@/components/dashboard/education-panel";
 import { InsightsRail } from "@/components/insights/insights-rail";
 import { Button } from "@/components/ui/button";
+import {
+  getSolverTelemetrySnapshot,
+  initializeSolverTelemetryStore,
+  setSolverTelemetrySnapshot
+} from "@/lib/solver-telemetry-store";
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 const initialAnalytics: SolverAnalytics = {
@@ -61,6 +66,14 @@ export function DashboardShell() {
   const [focusMode, setFocusMode] = useState(false);
   const [activeSection, setActiveSection] = useState<DashboardSection>("solver");
 
+  useEffect(() => {
+    initializeSolverTelemetryStore();
+    const snapshot = getSolverTelemetrySnapshot();
+    setAnalytics(snapshot.analytics);
+    setPerformance(snapshot.performance);
+    setStrategyPerformance(snapshot.strategyPerformance);
+  }, []);
+
   const handleAnalyticsChange = (
     nextAnalytics: SolverAnalytics,
     nextPerformance: AlgorithmPerformanceMap,
@@ -69,6 +82,11 @@ export function DashboardShell() {
     setAnalytics(nextAnalytics);
     setPerformance(nextPerformance);
     setStrategyPerformance(nextStrategyPerformance);
+    setSolverTelemetrySnapshot({
+      analytics: nextAnalytics,
+      performance: nextPerformance,
+      strategyPerformance: nextStrategyPerformance
+    });
   };
 
   const handleSectionNavigate = (sectionId: string) => {

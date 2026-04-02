@@ -1,4 +1,4 @@
-export const SUPPORTED_BOARD_SIZES = [4, 6, 8, 10, 12, 16] as const;
+export const SUPPORTED_BOARD_SIZES = [4, 6, 8, 10, 12, 14, 16, 18, 20] as const;
 
 export type BoardSize = (typeof SUPPORTED_BOARD_SIZES)[number];
 

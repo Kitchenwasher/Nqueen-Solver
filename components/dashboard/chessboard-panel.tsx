@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -48,6 +48,7 @@ import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { useHardwareProfile } from "@/hooks/use-hardware-profile";
 import { generateChallengeBoard, type ChallengeDifficulty, type ChallengeMode, type GeneratedChallenge } from "@/lib/challenges/generator";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
+import { loadSolverWorkspaceSnapshot, saveSolverWorkspaceSnapshot } from "@/lib/solver-workspace-store";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type HeatmapMode, type SolverAlgorithm } from "@/types/chessboard";
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
@@ -101,6 +102,7 @@ export function ChessboardPanel({
   const [validationOrigin, setValidationOrigin] = useState<ValidationOrigin>("live");
   const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("off");
+  const hydratedRef = useRef(false);
 
   const solver = useNQueenSolver({
     boardSize,
@@ -204,6 +206,90 @@ export function ChessboardPanel({
     }
     return 0;
   }, [heatmapMode, heatmaps.maxConflict, heatmaps.maxExploration, heatmaps.maxSolutionFrequency]);
+
+  /* eslint-disable react-hooks/exhaustive-deps */
+  useEffect(() => {
+    const snapshot = loadSolverWorkspaceSnapshot();
+    if (!snapshot) {
+      hydratedRef.current = true;
+      return;
+    }
+
+    setBoardSize(snapshot.boardSize);
+    setQueenCells(snapshot.queenCells);
+    setPrePlacedQueenCells(snapshot.prePlacedQueenCells);
+    setBlockedCells(snapshot.blockedCells);
+    setForbiddenCells(snapshot.forbiddenCells);
+    setConstraintEditMode(snapshot.constraintEditMode);
+    setChallengeMode(snapshot.challengeMode);
+    setChallengeDifficulty(snapshot.challengeDifficulty);
+    setActiveChallenge(snapshot.activeChallenge);
+    setChallengeStatus(snapshot.challengeStatus);
+    setIsSearchTreeVisible(snapshot.isSearchTreeVisible);
+    setHeatmapMode(snapshot.heatmapMode);
+    solver.setAlgorithm(snapshot.algorithm);
+    solver.setMode(snapshot.mode);
+    solver.setSpeedMs(snapshot.speedMs);
+    solver.setSearchStrategy(snapshot.searchStrategy);
+    solver.setSolvingObjective(snapshot.solvingObjective);
+    solver.setSplitDepthMode(snapshot.splitDepthMode);
+    solver.setManualSplitDepth(snapshot.manualSplitDepth);
+    solver.setSymmetryEnabled(snapshot.symmetryEnabled);
+
+    hydratedRef.current = true;
+  }, []);
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      return;
+    }
+
+    saveSolverWorkspaceSnapshot({
+      version: 1,
+      boardSize,
+      queenCells,
+      prePlacedQueenCells,
+      blockedCells,
+      forbiddenCells,
+      constraintEditMode,
+      challengeMode,
+      challengeDifficulty,
+      activeChallenge,
+      challengeStatus,
+      isSearchTreeVisible,
+      heatmapMode,
+      algorithm: solver.algorithm,
+      mode: solver.mode,
+      speedMs: solver.speedMs,
+      searchStrategy: solver.searchStrategy,
+      solvingObjective: solver.solvingObjective,
+      splitDepthMode: solver.splitDepthMode,
+      manualSplitDepth: solver.manualSplitDepth,
+      symmetryEnabled: solver.symmetryEnabled
+    });
+  }, [
+    activeChallenge,
+    blockedCells,
+    boardSize,
+    challengeDifficulty,
+    challengeMode,
+    challengeStatus,
+    constraintEditMode,
+    forbiddenCells,
+    heatmapMode,
+    isSearchTreeVisible,
+    prePlacedQueenCells,
+    queenCells,
+    solver.algorithm,
+    solver.manualSplitDepth,
+    solver.mode,
+    solver.searchStrategy,
+    solver.solvingObjective,
+    solver.speedMs,
+    solver.splitDepthMode,
+    solver.symmetryEnabled
+  ]);
 
   useEffect(() => {
     onAnalyticsChange?.(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);

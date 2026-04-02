@@ -1,44 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useSyncExternalStore } from "react";
 import { DashboardAppShell } from "@/components/dashboard/dashboard-app-shell";
 import { InsightsRail } from "@/components/insights/insights-rail";
 import { Button } from "@/components/ui/button";
-import type { SolverAnalytics } from "@/types/dashboard";
-
-const initialAnalytics: SolverAnalytics = {
-  algorithm: "Classic Backtracking",
-  selectedAlgorithm: "classic",
-  recursiveCalls: 0,
-  backtracks: 0,
-  solutionsFound: 0,
-  elapsedMs: 0,
-  currentRow: null,
-  currentColumn: null,
-  searchDepth: 0,
-  boardSize: 8,
-  solverStatus: "idle",
-  searchStrategy: "Left to Right",
-  selectedSearchStrategy: "left-to-right",
-  solvingObjective: "Fastest First Solution",
-  selectedSolvingObjective: "fastest-first",
-  timeToFirstSolutionMs: null,
-  timeToAllSolutionsMs: null,
-  firstSolutionPath: null,
-  symmetry: {
-    enabled: false,
-    branchesSkipped: 0,
-    estimatedSearchReduction: 0,
-    effectiveSpeedup: 1
-  },
-  pruning: {
-    branchesPruned: 0,
-    deadStatesDetected: 0,
-    estimatedWorkSaved: 0
-  }
-};
+import {
+  getSolverTelemetrySnapshot,
+  initializeSolverTelemetryStore,
+  subscribeSolverTelemetry
+} from "@/lib/solver-telemetry-store";
 
 export function InsightsPageShell() {
+  useEffect(() => {
+    initializeSolverTelemetryStore();
+  }, []);
+
+  const telemetry = useSyncExternalStore(
+    subscribeSolverTelemetry,
+    getSolverTelemetrySnapshot,
+    getSolverTelemetrySnapshot
+  );
+
   return (
     <DashboardAppShell
       page="insights"
@@ -66,9 +49,9 @@ export function InsightsPageShell() {
     >
       <div id="insights-section" className="w-full max-w-[1200px]">
         <InsightsRail
-          analytics={initialAnalytics}
-          performance={{}}
-          strategyPerformance={{}}
+          analytics={telemetry.analytics}
+          performance={telemetry.performance}
+          strategyPerformance={telemetry.strategyPerformance}
           fullPage
         />
       </div>

@@ -139,11 +139,13 @@ export function InsightsSidebar({
   };
   const currentAlgorithmPerformance = performance[analytics.selectedAlgorithm];
   const baselineClassicForBoard = performance.classic?.boardSize === analytics.boardSize ? performance.classic : undefined;
+  const hasMeasuredRun =
+    analytics.elapsedMs > 0 || analytics.recursiveCalls > 0 || analytics.backtracks > 0 || analytics.solutionsFound > 0;
 
-  const pruningScore = clamp(analytics.pruning.estimatedWorkSaved * 100, 0, 100);
+  const pruningScore = hasMeasuredRun ? clamp(analytics.pruning.estimatedWorkSaved * 100, 0, 100) : null;
   const speedupScore = baselineClassicForBoard
     ? clamp((baselineClassicForBoard.elapsedMs / Math.max(analytics.elapsedMs, 1)) * 45, 0, 100)
-    : 55;
+    : null;
   const utilizationScore =
     analytics.selectedAlgorithm === "parallel" && analytics.parallel
       ? clamp(
@@ -152,16 +154,32 @@ export function InsightsSidebar({
           0,
           100
         )
-      : 65;
+      : hasMeasuredRun
+        ? clamp(analytics.searchDepth > 0 ? (analytics.searchDepth / Math.max(analytics.boardSize, 1)) * 100 : 0, 0, 100)
+        : null;
   const searchEfficiencyScore =
     currentAlgorithmPerformance && currentAlgorithmPerformance.solutionsFound > 0
       ? clamp(100 - (currentAlgorithmPerformance.recursiveCalls / Math.max(currentAlgorithmPerformance.solutionsFound, 1)) * 0.0005, 0, 100)
-      : 60;
-  const timeScore = clamp(100 - Math.log10(Math.max(analytics.elapsedMs, 1)) * 25, 0, 100);
+      : null;
+  const timeScore = hasMeasuredRun ? clamp(100 - Math.log10(Math.max(analytics.elapsedMs, 1)) * 25, 0, 100) : null;
 
-  const overallEfficiencyScore = Math.round(
-    clamp(pruningScore * 0.22 + speedupScore * 0.22 + utilizationScore * 0.18 + searchEfficiencyScore * 0.2 + timeScore * 0.18, 0, 100)
+  const scoreParts = [pruningScore, speedupScore, utilizationScore, searchEfficiencyScore, timeScore].filter(
+    (score): score is number => typeof score === "number"
   );
+  const overallEfficiencyScore =
+    scoreParts.length > 0
+      ? Math.round(
+          clamp(
+            (pruningScore ?? 0) * 0.22 +
+              (speedupScore ?? 0) * 0.22 +
+              (utilizationScore ?? 0) * 0.18 +
+              (searchEfficiencyScore ?? 0) * 0.2 +
+              (timeScore ?? 0) * 0.18,
+            0,
+            100
+          )
+        )
+      : null;
 
   const isLive = analytics.solverStatus === "solving" || analytics.solverStatus === "stepping";
   const statusBadgeClass =
@@ -272,18 +290,18 @@ export function InsightsSidebar({
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.13em] text-muted-foreground">Solver Efficiency</p>
                       <p className="text-3xl font-semibold leading-none text-primary drop-shadow-[0_0_12px_rgba(90,255,235,0.25)]">
-                        {overallEfficiencyScore}
+                        {overallEfficiencyScore ?? "--"}
                         <span className="text-base text-muted-foreground">/100</span>
                       </p>
                     </div>
-                    <Badge variant="secondary">{scoreToLabel(overallEfficiencyScore)}</Badge>
+                    <Badge variant="secondary">{overallEfficiencyScore !== null ? scoreToLabel(overallEfficiencyScore) : "No Data"}</Badge>
                   </div>
-                  <Progress value={overallEfficiencyScore} indicatorClassName="bg-gradient-to-r from-cyan-400 to-primary" />
+                  <Progress value={overallEfficiencyScore ?? 0} indicatorClassName="bg-gradient-to-r from-cyan-400 to-primary" />
                   <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                    <p>Pruning: <span className="text-foreground">{scoreToLabel(Math.round(pruningScore))}</span></p>
-                    <p>Utilization: <span className="text-foreground">{scoreToLabel(Math.round(utilizationScore))}</span></p>
-                    <p>Search Quality: <span className="text-foreground">{scoreToLabel(Math.round(searchEfficiencyScore))}</span></p>
-                    <p>Time Score: <span className="text-foreground">{scoreToLabel(Math.round(timeScore))}</span></p>
+                    <p>Pruning: <span className="text-foreground">{pruningScore !== null ? `${Math.round(pruningScore)}/100` : "No Data"}</span></p>
+                    <p>Utilization: <span className="text-foreground">{utilizationScore !== null ? `${Math.round(utilizationScore)}/100` : "No Data"}</span></p>
+                    <p>Search Quality: <span className="text-foreground">{searchEfficiencyScore !== null ? `${Math.round(searchEfficiencyScore)}/100` : "No Data"}</span></p>
+                    <p>Time Score: <span className="text-foreground">{timeScore !== null ? `${Math.round(timeScore)}/100` : "No Data"}</span></p>
                   </div>
                 </CardContent>
               </Card>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Sora, Space_Grotesk } from "next/font/google";
 
 import "@/app/globals.css";
+import { PersistentLabsHost } from "@/components/app-shell/persistent-labs-host";
 import { cn } from "@/lib/utils";
 
 const sora = Sora({
@@ -36,6 +37,7 @@ export default function RootLayout({
           spaceGrotesk.variable
         )}
       >
+        <PersistentLabsHost />
         {children}
       </body>
     </html>
