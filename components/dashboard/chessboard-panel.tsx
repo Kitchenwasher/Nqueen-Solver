@@ -350,6 +350,53 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   Heuristic Search
                 </Button>
               </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Split Depth</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={solver.splitDepthMode === "auto" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSplitDepthMode("auto")}
+                  disabled={solver.isBusy || solver.algorithm !== "parallel"}
+                >
+                  Auto Split
+                </Button>
+                <Button
+                  variant={solver.splitDepthMode === "manual" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSplitDepthMode("manual")}
+                  disabled={solver.isBusy || solver.algorithm !== "parallel"}
+                >
+                  Manual Split
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={solver.manualSplitDepth === 0 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setManualSplitDepth(0)}
+                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                >
+                  Depth 0
+                </Button>
+                <Button
+                  variant={solver.manualSplitDepth === 1 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setManualSplitDepth(1)}
+                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                >
+                  Depth 1
+                </Button>
+                <Button
+                  variant={solver.manualSplitDepth === 2 ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setManualSplitDepth(2)}
+                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                >
+                  Depth 2
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-2 lg:min-w-[280px]">

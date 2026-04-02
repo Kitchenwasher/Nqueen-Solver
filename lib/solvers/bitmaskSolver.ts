@@ -33,20 +33,24 @@ function createFrameEmitter(
     message: string,
     searchDepth: number
   ) => {
-    stats.step += 1;
-    onFrame({
-      eventType,
-      moveState,
-      activeCell,
-      message,
-      step: stats.step,
-      queensByRow: [...queensByRow],
-      recursiveCalls: stats.recursiveCalls,
-      backtracks: stats.backtracks,
-      solutionsFound: stats.solutionsFound,
-      searchDepth
-    });
-    await waitForPacing();
+    if (onFrame) {
+      stats.step += 1;
+      onFrame({
+        eventType,
+        moveState,
+        activeCell,
+        message,
+        step: stats.step,
+        queensByRow: [...queensByRow],
+        recursiveCalls: stats.recursiveCalls,
+        backtracks: stats.backtracks,
+        solutionsFound: stats.solutionsFound,
+        searchDepth
+      });
+    }
+    if (waitForPacing) {
+      await waitForPacing();
+    }
   };
 }
 
@@ -166,6 +170,7 @@ export async function findAllBitmask({
   searchStrategy = "left-to-right",
   shouldStop,
   maxStoredSolutions,
+  countOnly = false,
   yieldEveryNodes = 500,
   onProgress
 }: FindAllOptions): Promise<FindAllResult> {
@@ -204,14 +209,14 @@ export async function findAllBitmask({
   function recordSolution(mirrorFactor: 1 | 2, shouldMirror: boolean) {
     solutionsFound += mirrorFactor;
 
-    if (solutions.length < maxStoredSolutions) {
+    if (!countOnly && solutions.length < maxStoredSolutions) {
       solutions.push([...queensByRow]);
-    } else {
+    } else if (!countOnly) {
       capped = true;
       return;
     }
 
-    if (shouldMirror && mirrorFactor === 2 && !capped) {
+    if (!countOnly && shouldMirror && mirrorFactor === 2 && !capped) {
       if (solutions.length < maxStoredSolutions) {
         solutions.push(mirrorSolution(queensByRow, boardSize));
       } else {
@@ -230,7 +235,7 @@ export async function findAllBitmask({
   ): Promise<void> {
     recursiveCalls += 1;
 
-    if (shouldStop() || capped) {
+    if (shouldStop() || (capped && !countOnly)) {
       return;
     }
 
@@ -264,7 +269,7 @@ export async function findAllBitmask({
     });
 
     for (const bit of orderedBits) {
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         return;
       }
 
@@ -281,7 +286,7 @@ export async function findAllBitmask({
         shouldMirror
       );
 
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         queensByRow[row] = -1;
         return;
       }
@@ -306,7 +311,7 @@ export async function findAllBitmask({
   });
 
   for (const bit of orderedRootBits) {
-    if (shouldStop() || capped) {
+    if (shouldStop() || (capped && !countOnly)) {
       break;
     }
 

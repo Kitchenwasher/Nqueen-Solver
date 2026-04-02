@@ -15,6 +15,9 @@ type ParallelProgress = ParallelWorkerPoolProgress & {
   searchDepth: number;
   storedSolutionsCount: number;
   capped: boolean;
+  splitDepthUsed: number;
+  taskCountGenerated: number;
+  loadBalancingEffectiveness: number;
 };
 
 type RunParallelOptions = {
@@ -22,6 +25,8 @@ type RunParallelOptions = {
   findAll: boolean;
   symmetryEnabled?: boolean;
   searchStrategy?: SearchStrategy;
+  splitDepthMode?: "auto" | "manual";
+  manualSplitDepth?: 0 | 1 | 2;
   maxStoredSolutions: number;
   shouldStop: () => boolean;
   onLog?: (message: string) => void;
@@ -37,6 +42,48 @@ function safeWorkerCount(taskCount: number) {
   return Math.max(1, Math.min(Math.max(hardware - 2, 1), 16, taskCount));
 }
 
+function getAdaptiveSplitDepth(n: number): 0 | 1 | 2 {
+  if (n <= 8) {
+    return 0;
+  }
+  if (n <= 11) {
+    return 1;
+  }
+  return 2;
+}
+
+function clampSplitDepth(depth: number): 0 | 1 | 2 {
+  if (depth <= 0) {
+    return 0;
+  }
+  if (depth >= 2) {
+    return 2;
+  }
+  return 1;
+}
+
+function calculateLoadBalancingEffectiveness(workerTaskCounts: number[], workerCount: number) {
+  if (workerCount <= 1) {
+    return 1;
+  }
+
+  const active = workerTaskCounts.filter((count) => count > 0);
+  if (active.length <= 1) {
+    return 0;
+  }
+
+  const total = active.reduce((sum, count) => sum + count, 0);
+  const average = total / active.length;
+  if (average <= 0) {
+    return 0;
+  }
+
+  const variance = active.reduce((sum, count) => sum + (count - average) ** 2, 0) / active.length;
+  const stdDev = Math.sqrt(variance);
+  const coefficientOfVariation = stdDev / average;
+  return Math.max(0, 1 - coefficientOfVariation);
+}
+
 function taskLabel(task: ParallelSolveTask) {
   const row0 = task.placements[0];
   const row1 = task.placements[1];
@@ -50,11 +97,11 @@ function generateParallelTasks(
   n: number,
   findAll: boolean,
   maxStoredSolutions: number,
-  symmetryEnabled: boolean
+  symmetryEnabled: boolean,
+  splitDepth: 0 | 1 | 2
 ): ParallelSolveTask[] {
   const fullMask = (1 << n) - 1;
   const tasks: ParallelSolveTask[] = [];
-  const splitDepth = n >= 12 ? 2 : 1;
   let id = 0;
   const rootBranches = getRootBranches(n, symmetryEnabled);
 
@@ -73,7 +120,7 @@ function generateParallelTasks(
     const diagAfterRow0 = (row0Bit << 1) & fullMask;
     const antiAfterRow0 = row0Bit >> 1;
 
-    if (splitDepth === 1) {
+    if (splitDepth <= 1) {
       id += 1;
       tasks.push({
         id: `task-${id}`,
@@ -122,15 +169,19 @@ export async function runParallelNQueenSolver({
   findAll,
   symmetryEnabled = false,
   searchStrategy = "left-to-right",
+  splitDepthMode = "auto",
+  manualSplitDepth = 1,
   maxStoredSolutions,
   shouldStop,
   onLog,
   onProgress
 }: RunParallelOptions) {
   void searchStrategy;
-  const tasks = generateParallelTasks(n, findAll, maxStoredSolutions, symmetryEnabled);
+  const splitDepthUsed = splitDepthMode === "auto" ? getAdaptiveSplitDepth(n) : clampSplitDepth(manualSplitDepth);
+  const tasks = generateParallelTasks(n, findAll, maxStoredSolutions, symmetryEnabled, splitDepthUsed);
   const workerCount = safeWorkerCount(tasks.length);
   const pool = new ParallelWorkerPool(workerCount);
+  const workerTaskCounts = Array.from({ length: workerCount }, () => 0);
 
   let recursiveCalls = 0;
   let backtracks = 0;
@@ -145,7 +196,7 @@ export async function runParallelNQueenSolver({
   let pruning: PruningStats = createPruningStats(true, 0, 0, 0);
 
   onLog?.(`Initializing worker pool with ${workerCount} workers.`);
-  onLog?.(`Generating parallel tasks: ${tasks.length} branches.`);
+  onLog?.(`Adaptive split depth: ${splitDepthUsed}. Generated ${tasks.length} branches.`);
 
   const report = (
     progress: ParallelWorkerPoolProgress,
@@ -163,7 +214,10 @@ export async function runParallelNQueenSolver({
       latestCol,
       searchDepth,
       storedSolutionsCount: storedSolutions.length,
-      capped
+      capped,
+      splitDepthUsed,
+      taskCountGenerated: tasks.length,
+      loadBalancingEffectiveness: calculateLoadBalancingEffectiveness(workerTaskCounts, workerCount)
     });
   };
 
@@ -176,6 +230,10 @@ export async function runParallelNQueenSolver({
       const metadata = taskMeta.get(result.taskId);
       const mirrorFactor = metadata?.mirrorFactor ?? 1;
       const shouldMirrorStored = metadata?.mirrorStoredSolutions ?? false;
+      const workerIndex = result.workerId - 1;
+      if (workerIndex >= 0 && workerIndex < workerTaskCounts.length) {
+        workerTaskCounts[workerIndex] += 1;
+      }
 
       recursiveCalls += result.recursiveCalls;
       backtracks += result.backtracks;
@@ -228,6 +286,8 @@ export async function runParallelNQueenSolver({
   return {
     workerCount,
     tasksTotal: tasks.length,
+    splitDepthUsed,
+    loadBalancingEffectiveness: calculateLoadBalancingEffectiveness(workerTaskCounts, workerCount),
     recursiveCalls,
     backtracks,
     solutionsFound,

@@ -15,6 +15,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { HardwareInfoCard } from "@/components/dashboard/hardware-info-card";
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 type InsightsSidebarProps = {
@@ -101,6 +102,8 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
                 {prettyStatus(analytics.solverStatus)}
               </Badge>
             </article>
+
+            <HardwareInfoCard currentAlgorithm={analytics.selectedAlgorithm} compactCardClass={compactCardClass} />
 
             <article className={compactCardClass}>
               <div className="mb-2 flex items-center justify-between">
@@ -296,6 +299,18 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
                 <div className="rounded-md border border-border/50 bg-background/40 p-2">
                   <p className="text-muted-foreground">Tasks Remaining</p>
                   <p className="text-sm font-semibold">{analytics.parallel.tasksRemaining}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Split Depth Used</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.splitDepthUsed}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Task Count</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.taskCountGenerated}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Load Balance</p>
+                  <p className="text-sm font-semibold">{(analytics.parallel.loadBalancingEffectiveness * 100).toFixed(1)}%</p>
                 </div>
               </div>
             </section>

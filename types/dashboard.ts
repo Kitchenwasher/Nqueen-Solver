@@ -30,6 +30,9 @@ export type SolverAnalytics = {
     activeWorkers: number;
     tasksCompleted: number;
     tasksRemaining: number;
+    splitDepthUsed: number;
+    taskCountGenerated: number;
+    loadBalancingEffectiveness: number;
   };
 };
 

@@ -32,9 +32,9 @@ export type SolveFirstOptions = {
   boardSize: number;
   symmetryEnabled?: boolean;
   searchStrategy?: SearchStrategy;
-  onFrame: (frame: SolverFrame) => void;
+  onFrame?: (frame: SolverFrame) => void;
   shouldStop: () => boolean;
-  waitForPacing: () => Promise<void>;
+  waitForPacing?: () => Promise<void>;
 };
 
 export type SymmetryStats = {
@@ -80,6 +80,7 @@ export type FindAllOptions = {
   searchStrategy?: SearchStrategy;
   shouldStop: () => boolean;
   maxStoredSolutions: number;
+  countOnly?: boolean;
   yieldEveryNodes?: number;
   onProgress?: (progress: FindAllProgress) => void;
 };

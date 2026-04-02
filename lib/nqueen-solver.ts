@@ -57,8 +57,8 @@ export function queensByRowToKeys(queensByRow: number[]) {
 }
 
 function createFrameEmitter(
-  onFrame: (frame: SolverFrame) => void,
-  waitForPacing: () => Promise<void>,
+  onFrame: ((frame: SolverFrame) => void) | undefined,
+  waitForPacing: (() => Promise<void>) | undefined,
   queensByRow: number[],
   stats: SolverStats
 ) {
@@ -69,20 +69,24 @@ function createFrameEmitter(
     message: string,
     searchDepth: number
   ) => {
-    stats.step += 1;
-    onFrame({
-      eventType,
-      moveState,
-      activeCell,
-      message,
-      step: stats.step,
-      queensByRow: [...queensByRow],
-      recursiveCalls: stats.recursiveCalls,
-      backtracks: stats.backtracks,
-      solutionsFound: stats.solutionsFound,
-      searchDepth
-    });
-    await waitForPacing();
+    if (onFrame) {
+      stats.step += 1;
+      onFrame({
+        eventType,
+        moveState,
+        activeCell,
+        message,
+        step: stats.step,
+        queensByRow: [...queensByRow],
+        recursiveCalls: stats.recursiveCalls,
+        backtracks: stats.backtracks,
+        solutionsFound: stats.solutionsFound,
+        searchDepth
+      });
+    }
+    if (waitForPacing) {
+      await waitForPacing();
+    }
   };
 }
 
@@ -376,6 +380,7 @@ async function findAllClassic({
   searchStrategy = "left-to-right",
   shouldStop,
   maxStoredSolutions,
+  countOnly = false,
   yieldEveryNodes = 500,
   onProgress
 }: Omit<FindAllNQueenOptions, "algorithm">) {
@@ -412,15 +417,15 @@ async function findAllClassic({
   async function dfs(row: number): Promise<void> {
     recursiveCalls += 1;
 
-    if (shouldStop() || capped) {
+    if (shouldStop() || (capped && !countOnly)) {
       return;
     }
 
     if (row === boardSize) {
       solutionsFound += 1;
-      if (solutions.length < maxStoredSolutions) {
+      if (!countOnly && solutions.length < maxStoredSolutions) {
         solutions.push([...queensByRow]);
-      } else {
+      } else if (!countOnly) {
         capped = true;
       }
       emitProgress(null, null, boardSize);
@@ -450,7 +455,7 @@ async function findAllClassic({
     );
 
     for (const col of columns) {
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         return;
       }
 
@@ -465,7 +470,7 @@ async function findAllClassic({
       emitProgress(row, col, row + 1);
       await dfs(row + 1);
 
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         queensByRow[row] = -1;
         return;
       }
@@ -495,6 +500,7 @@ async function findAllOptimized({
   searchStrategy = "left-to-right",
   shouldStop,
   maxStoredSolutions,
+  countOnly = false,
   yieldEveryNodes = 500,
   onProgress
 }: Omit<FindAllNQueenOptions, "algorithm">) {
@@ -535,15 +541,15 @@ async function findAllOptimized({
   async function dfs(row: number): Promise<void> {
     recursiveCalls += 1;
 
-    if (shouldStop() || capped) {
+    if (shouldStop() || (capped && !countOnly)) {
       return;
     }
 
     if (row === boardSize) {
       solutionsFound += 1;
-      if (solutions.length < maxStoredSolutions) {
+      if (!countOnly && solutions.length < maxStoredSolutions) {
         solutions.push([...queensByRow]);
-      } else {
+      } else if (!countOnly) {
         capped = true;
       }
       emitProgress(null, null, boardSize);
@@ -599,7 +605,7 @@ async function findAllOptimized({
     );
 
     for (const col of columnsToTry) {
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         return;
       }
 
@@ -619,7 +625,7 @@ async function findAllOptimized({
       emitProgress(row, col, row + 1);
       await dfs(row + 1);
 
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         columns.delete(col);
         diagonals.delete(diagonal);
         antiDiagonals.delete(antiDiagonal);
@@ -640,19 +646,19 @@ async function findAllOptimized({
   async function dfsWithMirror(row: number, mirrorFactor: 1 | 2, shouldMirror: boolean): Promise<void> {
     recursiveCalls += 1;
 
-    if (shouldStop() || capped) {
+    if (shouldStop() || (capped && !countOnly)) {
       return;
     }
 
     if (row === boardSize) {
       solutionsFound += mirrorFactor;
-      if (solutions.length < maxStoredSolutions) {
+      if (!countOnly && solutions.length < maxStoredSolutions) {
         solutions.push([...queensByRow]);
-      } else {
+      } else if (!countOnly) {
         capped = true;
       }
 
-      if (!capped && shouldMirror && mirrorFactor === 2) {
+      if (!countOnly && !capped && shouldMirror && mirrorFactor === 2) {
         if (solutions.length < maxStoredSolutions) {
           solutions.push(mirrorSolution(queensByRow, boardSize));
         } else {
@@ -713,7 +719,7 @@ async function findAllOptimized({
     );
 
     for (const col of columnsToTry) {
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         return;
       }
 
@@ -733,7 +739,7 @@ async function findAllOptimized({
       emitProgress(row, col, row + 1);
       await dfsWithMirror(row + 1, mirrorFactor, shouldMirror);
 
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         columns.delete(col);
         diagonals.delete(diagonal);
         antiDiagonals.delete(antiDiagonal);
@@ -787,7 +793,7 @@ async function findAllOptimized({
     );
 
     for (const col of orderedRootBranches) {
-      if (shouldStop() || capped) {
+      if (shouldStop() || (capped && !countOnly)) {
         break;
       }
 

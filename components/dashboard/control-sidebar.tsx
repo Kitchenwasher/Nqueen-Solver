@@ -10,6 +10,7 @@ const quickSteps = [
   "Select board size and solver algorithm in the board panel.",
   "Toggle Symmetry Optimization ON to skip mirrored root branches.",
   "Pick a search strategy: Left to Right, Center First, or Heuristic Search.",
+  "For Parallel Solver, use Auto Split Depth or Manual Depth (0/1/2) to tune branch fan-out.",
   "Choose Auto-play or Step-by-step for traversal pacing.",
   "Use pruning stats in Insights to measure branches pruned and dead states avoided.",
   "Use Find First or Find All to run the selected strategy.",

@@ -22,6 +22,7 @@ import type {
 } from "@/types/dashboard";
 
 export type SolverPhase = "idle" | "solving" | "paused" | "stepping" | "enumerating" | "solved" | "failed";
+export type ParallelSplitDepthMode = "auto" | "manual";
 
 export type SolverLogEntry = {
   id: string;
@@ -91,6 +92,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const [speedMs, setSpeedMs] = useState(DEFAULT_SPEED_MS);
   const [symmetryEnabled, setSymmetryEnabled] = useState(true);
   const [searchStrategy, setSearchStrategy] = useState<SearchStrategy>("left-to-right");
+  const [splitDepthMode, setSplitDepthMode] = useState<ParallelSplitDepthMode>("auto");
+  const [manualSplitDepth, setManualSplitDepth] = useState<0 | 1 | 2>(1);
   const [logs, setLogs] = useState<SolverLogEntry[]>([]);
   const [exploredCell, setExploredCell] = useState<CellCoordinate | null>(null);
   const [moveState, setMoveState] = useState<SolverMoveState>(null);
@@ -110,6 +113,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const [parallelActiveWorkers, setParallelActiveWorkers] = useState(0);
   const [parallelTasksCompleted, setParallelTasksCompleted] = useState(0);
   const [parallelTasksTotal, setParallelTasksTotal] = useState(0);
+  const [parallelSplitDepthUsed, setParallelSplitDepthUsed] = useState(0);
+  const [parallelLoadBalancingEffectiveness, setParallelLoadBalancingEffectiveness] = useState(0);
   const [symmetryStats, setSymmetryStats] = useState<SymmetryStats>(DEFAULT_SYMMETRY_STATS);
   const [pruningStats, setPruningStats] = useState<PruningStats>(DEFAULT_PRUNING_STATS);
 
@@ -176,6 +181,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setParallelActiveWorkers(0);
     setParallelTasksCompleted(0);
     setParallelTasksTotal(0);
+    setParallelSplitDepthUsed(0);
+    setParallelLoadBalancingEffectiveness(0);
     setSymmetryStats(DEFAULT_SYMMETRY_STATS);
     setPruningStats(DEFAULT_PRUNING_STATS);
     startedAtRef.current = null;
@@ -279,6 +286,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
         findAll,
         symmetryEnabled,
         searchStrategy,
+        splitDepthMode,
+        manualSplitDepth,
         maxStoredSolutions: findAll ? getStorageCap(boardSize) : 1,
         shouldStop: () => stopRef.current || runIdRef.current !== currentRunId,
         onLog: (message) => {
@@ -296,6 +305,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
           setParallelActiveWorkers(progress.activeWorkers);
           setParallelTasksCompleted(progress.tasksCompleted);
           setParallelTasksTotal(progress.tasksTotal);
+          setParallelSplitDepthUsed(progress.splitDepthUsed);
+          setParallelLoadBalancingEffectiveness(progress.loadBalancingEffectiveness);
           setRecursiveCalls(progress.recursiveCalls);
           setBacktracks(progress.backtracks);
           setSolutionsFound(progress.solutionsFound);
@@ -312,7 +323,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
       return result;
     },
-    [appendLog, boardSize, searchStrategy, symmetryEnabled]
+    [appendLog, boardSize, manualSplitDepth, searchStrategy, splitDepthMode, symmetryEnabled]
   );
 
   const findFirstSolution = useCallback(async () => {
@@ -353,6 +364,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       setParallelTotalWorkers(parallelResult.workerCount);
       setParallelTasksCompleted(parallelResult.tasksTotal);
       setParallelTasksTotal(parallelResult.tasksTotal);
+      setParallelSplitDepthUsed(parallelResult.splitDepthUsed);
+      setParallelLoadBalancingEffectiveness(parallelResult.loadBalancingEffectiveness);
       setSymmetryStats(parallelResult.symmetry);
       setPruningStats(parallelResult.pruning);
 
@@ -534,6 +547,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       setParallelTotalWorkers(parallelResult.workerCount);
       setParallelTasksCompleted(parallelResult.tasksTotal);
       setParallelTasksTotal(parallelResult.tasksTotal);
+      setParallelSplitDepthUsed(parallelResult.splitDepthUsed);
+      setParallelLoadBalancingEffectiveness(parallelResult.loadBalancingEffectiveness);
       setMoveState(parallelResult.solutions.length > 0 ? "valid" : null);
       setExploredCell(null);
       setSymmetryStats(parallelResult.symmetry);
@@ -789,7 +804,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
               totalWorkers: parallelTotalWorkers,
               activeWorkers: parallelActiveWorkers,
               tasksCompleted: parallelTasksCompleted,
-              tasksRemaining: Math.max(parallelTasksTotal - parallelTasksCompleted, 0)
+              tasksRemaining: Math.max(parallelTasksTotal - parallelTasksCompleted, 0),
+              splitDepthUsed: parallelSplitDepthUsed,
+              taskCountGenerated: parallelTasksTotal,
+              loadBalancingEffectiveness: parallelLoadBalancingEffectiveness
             }
           : undefined
     }),
@@ -804,6 +822,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       parallelTasksCompleted,
       parallelTasksTotal,
       parallelTotalWorkers,
+      parallelSplitDepthUsed,
+      parallelLoadBalancingEffectiveness,
       phase,
       recursiveCalls,
       searchStrategy,
@@ -825,6 +845,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     mode,
     speedMs,
     searchStrategy,
+    splitDepthMode,
+    manualSplitDepth,
     symmetryEnabled,
     logs,
     exploredCell,
@@ -841,6 +863,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setMode,
     setSpeedMs,
     setSearchStrategy,
+    setSplitDepthMode,
+    setManualSplitDepth,
     setSymmetryEnabled,
     findFirstSolution,
     findAllSolutions,
