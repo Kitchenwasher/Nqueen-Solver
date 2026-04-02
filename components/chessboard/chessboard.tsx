@@ -7,6 +7,7 @@ import type { CellCoordinate, CellVisualState, HeatmapMode, SolverMoveState } fr
 
 type ChessboardProps = {
   boardSize: number;
+  focusMode?: boolean;
   queens: Set<string>;
   prePlacedQueens?: Set<string>;
   blockedCells?: Set<string>;
@@ -24,7 +25,26 @@ type ChessboardProps = {
   onCellClick: (cell: CellCoordinate) => void;
 };
 
-function getBoardMaxWidth(boardSize: number) {
+function getBoardMaxWidth(boardSize: number, focusMode: boolean) {
+  if (focusMode) {
+    if (boardSize <= 4) {
+      return 1320;
+    }
+    if (boardSize <= 6) {
+      return 1260;
+    }
+    if (boardSize <= 8) {
+      return 1180;
+    }
+    if (boardSize <= 10) {
+      return 1080;
+    }
+    if (boardSize <= 12) {
+      return 980;
+    }
+    return 900;
+  }
+
   if (boardSize <= 4) {
     return 980;
   }
@@ -86,6 +106,7 @@ function getCellState(
 
 export function Chessboard({
   boardSize,
+  focusMode = false,
   queens,
   prePlacedQueens = new Set<string>(),
   blockedCells = new Set<string>(),
@@ -102,7 +123,7 @@ export function Chessboard({
   isInteractionLocked = false,
   onCellClick
 }: ChessboardProps) {
-  const boardMaxWidth = getBoardMaxWidth(boardSize);
+  const boardMaxWidth = getBoardMaxWidth(boardSize, focusMode);
   const gridGapClass = boardSize >= 12 ? "gap-1 sm:gap-1.5" : "gap-1.5 sm:gap-2";
 
   return (
@@ -118,6 +139,7 @@ export function Chessboard({
         }}
         className={cn(
           "mx-auto w-full rounded-2xl border border-primary/35 bg-gradient-to-b from-slate-950/88 to-slate-950/65 p-2.5 shadow-[0_0_0_1px_rgba(112,238,221,0.2),0_30px_60px_rgba(2,6,26,0.7)] sm:p-3 md:p-4",
+          focusMode && "border-primary/55 p-3 sm:p-4 md:p-5",
           isSolvingActive && "shadow-[0_0_0_1px_rgba(120,255,236,0.44),0_0_34px_rgba(98,255,231,0.2),0_30px_60px_rgba(2,6,26,0.75)]"
         )}
       >

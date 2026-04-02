@@ -46,6 +46,7 @@ export function DashboardShell() {
   const [analytics, setAnalytics] = useState<SolverAnalytics>(initialAnalytics);
   const [performance, setPerformance] = useState<AlgorithmPerformanceMap>({});
   const [strategyPerformance, setStrategyPerformance] = useState<StrategyPerformanceMap>({});
+  const [focusMode, setFocusMode] = useState(false);
 
   const handleAnalyticsChange = (
     nextAnalytics: SolverAnalytics,
@@ -58,35 +59,59 @@ export function DashboardShell() {
   };
 
   return (
-    <div className="relative min-h-screen">
-      <div className="pointer-events-none absolute inset-0 bg-grid-noise [background-size:22px_22px] opacity-20" />
+    <div className={focusMode ? "relative min-h-screen bg-[#020610]" : "relative min-h-screen"}>
+      <div
+        className={
+          focusMode
+            ? "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,220,0.08),transparent_62%)]"
+            : "pointer-events-none absolute inset-0 bg-grid-noise [background-size:22px_22px] opacity-20"
+        }
+      />
 
-      <TopNavbar />
+      <TopNavbar showFocusToggle focusMode={focusMode} onToggleFocusMode={() => setFocusMode((current) => !current)} />
 
-      <main className="relative z-10 mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:gap-5 lg:px-8 lg:py-6">
+      <main
+        className={
+          focusMode
+            ? "relative z-10 mx-auto flex w-full max-w-[2200px] flex-col gap-4 px-3 py-3 sm:px-4 lg:gap-4 lg:px-6 lg:py-4"
+            : "relative z-10 mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:gap-5 lg:px-8 lg:py-6"
+        }
+      >
         <motion.section
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
-          className="grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-[240px_minmax(0,1.5fr)_300px] xl:items-start"
+          className={
+            focusMode
+              ? "grid grid-cols-1 gap-3 md:gap-4"
+              : "grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-[240px_minmax(0,1.5fr)_300px] xl:items-start"
+          }
         >
-          <ChessboardPanel className="order-1 h-full xl:order-2" onAnalyticsChange={handleAnalyticsChange} />
-          <ControlSidebar className="order-2 h-full xl:order-1" />
-          <InsightsSidebar
-            className="order-3 h-full xl:order-3"
-            analytics={analytics}
-            performance={performance}
-            strategyPerformance={strategyPerformance}
+          <ChessboardPanel
+            className={focusMode ? "order-1 h-full" : "order-1 h-full xl:order-2"}
+            onAnalyticsChange={handleAnalyticsChange}
+            focusMode={focusMode}
           />
+          {!focusMode && <ControlSidebar className="order-2 h-full xl:order-1" />}
+          {!focusMode && (
+            <InsightsSidebar
+              className="order-3 h-full xl:order-3"
+              analytics={analytics}
+              performance={performance}
+              strategyPerformance={strategyPerformance}
+            />
+          )}
         </motion.section>
 
-        <motion.section
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: "easeOut", delay: 0.12 }}
-        >
-          <EducationPanel />
-        </motion.section>
+        {!focusMode && (
+          <motion.section
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut", delay: 0.12 }}
+          >
+            <EducationPanel />
+          </motion.section>
+        )}
       </main>
     </div>
   );

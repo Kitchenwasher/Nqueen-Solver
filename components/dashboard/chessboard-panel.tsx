@@ -25,6 +25,7 @@ import { SearchTreeVisualizer } from "@/components/dashboard/search-tree-visuali
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { useHardwareProfile } from "@/hooks/use-hardware-profile";
+import { generateChallengeBoard, type ChallengeDifficulty, type ChallengeMode, type GeneratedChallenge } from "@/lib/challenges/generator";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type HeatmapMode, type SolverAlgorithm } from "@/types/chessboard";
@@ -32,6 +33,7 @@ import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap }
 
 type ChessboardPanelProps = {
   className?: string;
+  focusMode?: boolean;
   onAnalyticsChange?: (
     analytics: SolverAnalytics,
     performance: AlgorithmPerformanceMap,
@@ -52,15 +54,20 @@ const STATE_LEGEND = [
 ] as const;
 
 type ValidationOrigin = "live" | "manual";
-type ConstraintEditMode = "preplace" | "blocked" | "forbidden" | "erase";
+type ConstraintEditMode = "play" | "preplace" | "blocked" | "forbidden" | "erase";
 
-export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPanelProps) {
+export function ChessboardPanel({ className, focusMode = false, onAnalyticsChange }: ChessboardPanelProps) {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [queenCells, setQueenCells] = useState<string[]>([]);
   const [prePlacedQueenCells, setPrePlacedQueenCells] = useState<string[]>([]);
   const [blockedCells, setBlockedCells] = useState<string[]>([]);
   const [forbiddenCells, setForbiddenCells] = useState<string[]>([]);
-  const [constraintEditMode, setConstraintEditMode] = useState<ConstraintEditMode>("preplace");
+  const [constraintEditMode, setConstraintEditMode] = useState<ConstraintEditMode>("play");
+  const [challengeMode, setChallengeMode] = useState<ChallengeMode>("partially-filled");
+  const [challengeDifficulty, setChallengeDifficulty] = useState<ChallengeDifficulty>("medium");
+  const [activeChallenge, setActiveChallenge] = useState<GeneratedChallenge | null>(null);
+  const [challengeStatus, setChallengeStatus] = useState<string>("No active challenge");
+  const [isGeneratingChallenge, setIsGeneratingChallenge] = useState(false);
   const [activeCell, setActiveCell] = useState<CellCoordinate | null>(null);
   const [validationOrigin, setValidationOrigin] = useState<ValidationOrigin>("live");
   const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(false);
@@ -191,6 +198,19 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
       setActiveCell(cell);
       setValidationOrigin("live");
 
+      if (constraintEditMode === "play") {
+        if (blockedSet.has(clickedKey) || forbiddenSet.has(clickedKey) || prePlacedQueens.has(clickedKey)) {
+          return;
+        }
+        setQueenCells((previous) => {
+          if (previous.includes(clickedKey)) {
+            return previous.filter((queenKey) => queenKey !== clickedKey);
+          }
+          return [...previous, clickedKey];
+        });
+        return;
+      }
+
       if (constraintEditMode === "erase") {
         setPrePlacedQueenCells((previous) => previous.filter((key) => key !== clickedKey));
         setBlockedCells((previous) => previous.filter((key) => key !== clickedKey));
@@ -231,7 +251,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
         return [...previous, clickedKey];
       });
     },
-    [constraintEditMode, solver.isBusy]
+    [blockedSet, constraintEditMode, forbiddenSet, prePlacedQueens, solver.isBusy]
   );
 
   const handleClearBoard = useCallback(() => {
@@ -391,10 +411,15 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35 }}
-            className="rounded-xl border border-border/60 bg-background/30 p-2 sm:p-3"
+            className={cn(
+              "rounded-xl border border-border/60 bg-background/30 p-2 sm:p-3",
+              focusMode &&
+                "border-primary/45 bg-slate-950/40 shadow-[0_0_0_1px_rgba(86,255,229,0.25),0_0_42px_rgba(51,255,222,0.12)]"
+            )}
           >
             <Chessboard
               boardSize={boardSize}
+              focusMode={focusMode}
               queens={queens}
               prePlacedQueens={prePlacedQueens}
               blockedCells={blockedSet}
@@ -413,7 +438,12 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
             />
           </motion.div>
 
-          <div className="grid gap-3 rounded-lg border border-border/60 bg-background/35 p-3 lg:grid-cols-[1fr_auto]">
+          <div
+            className={cn(
+              "grid gap-3 rounded-lg border border-border/60 bg-background/35 p-3 lg:grid-cols-[1fr_auto]",
+              focusMode && "bg-slate-950/35"
+            )}
+          >
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Algorithm</p>
               <div className="mb-3 flex flex-wrap gap-2">
@@ -529,6 +559,14 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
               <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Constraint Editor</p>
               <div className="flex flex-wrap gap-2">
                 <Button
+                  variant={constraintEditMode === "play" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConstraintEditMode("play")}
+                  disabled={solver.isBusy}
+                >
+                  Play Queens
+                </Button>
+                <Button
                   variant={constraintEditMode === "preplace" ? "default" : "outline"}
                   size="sm"
                   onClick={() => setConstraintEditMode("preplace")}
@@ -561,6 +599,116 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   Erase Cell
                 </Button>
               </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Challenge Generator</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={challengeMode === "partially-filled" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeMode("partially-filled")}
+                >
+                  Partial Fill
+                </Button>
+                <Button
+                  variant={challengeMode === "constrained" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeMode("constrained")}
+                >
+                  Constrained
+                </Button>
+                <Button
+                  variant={challengeMode === "unique-continuation" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeMode("unique-continuation")}
+                >
+                  Unique Continuation
+                </Button>
+                <Button
+                  variant={challengeMode === "limited-clue" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeMode("limited-clue")}
+                >
+                  Limited Clue
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={challengeDifficulty === "easy" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeDifficulty("easy")}
+                >
+                  Easy
+                </Button>
+                <Button
+                  variant={challengeDifficulty === "medium" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeDifficulty("medium")}
+                >
+                  Medium
+                </Button>
+                <Button
+                  variant={challengeDifficulty === "hard" ? "default" : "outline"}
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={() => setChallengeDifficulty("hard")}
+                >
+                  Hard
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={solver.isBusy || isGeneratingChallenge}
+                  onClick={async () => {
+                    setIsGeneratingChallenge(true);
+                    setChallengeStatus("Generating challenge...");
+                    try {
+                      const challenge = await generateChallengeBoard({
+                        boardSize,
+                        mode: challengeMode,
+                        difficulty: challengeDifficulty
+                      });
+                      setActiveChallenge(challenge);
+                      setPrePlacedQueenCells(challenge.prePlacedQueens);
+                      setBlockedCells(challenge.blockedCells);
+                      setForbiddenCells(challenge.forbiddenCells);
+                      setQueenCells([]);
+                      setConstraintEditMode("play");
+                      setValidationOrigin("live");
+                      setChallengeStatus(challenge.description);
+                    } catch {
+                      setChallengeStatus("Challenge generation failed for this setup. Try again.");
+                    } finally {
+                      setIsGeneratingChallenge(false);
+                    }
+                  }}
+                >
+                  {isGeneratingChallenge ? "Generating..." : "Generate Challenge"}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={!activeChallenge || solver.isBusy || isGeneratingChallenge}
+                  onClick={() => {
+                    if (!activeChallenge) {
+                      return;
+                    }
+                    setQueenCells(activeChallenge.solutionKeys.filter((key) => !activeChallenge.prePlacedQueens.includes(key)));
+                    setChallengeStatus("Solution revealed.");
+                  }}
+                >
+                  Reveal Solution
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">{challengeStatus}</p>
 
               <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Solving Objective</p>
               <div className="flex flex-wrap gap-2">
@@ -797,7 +945,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
           <motion.section
             layout
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className="rounded-xl border border-border/70 bg-card/60 p-3"
+            className={cn("rounded-xl border border-border/70 bg-card/60 p-3", focusMode && "bg-slate-950/45")}
           >
             <p className="mb-2 text-sm font-medium">Live Solver Log</p>
             <ScrollArea className="h-[230px] rounded-lg border border-border/60 bg-background/30 p-2.5 sm:h-[280px] md:h-[320px]">
@@ -829,23 +977,27 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
             </ScrollArea>
           </motion.section>
 
-          {isSearchTreeVisible && <SearchTreeVisualizer logs={solver.logs} phase={solver.phase} boardSize={boardSize} />}
+          {!focusMode && isSearchTreeVisible && <SearchTreeVisualizer logs={solver.logs} phase={solver.phase} boardSize={boardSize} />}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">
-              {validation.message}
-              {validationOrigin === "manual" ? " (Validated)" : ""}
-            </span>
-          </div>
+          {!focusMode && (
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {validation.message}
+                {validationOrigin === "manual" ? " (Validated)" : ""}
+              </span>
+            </div>
+          )}
 
-          <div className="flex flex-wrap gap-2.5 rounded-lg border border-border/60 bg-background/35 p-3">
-            {STATE_LEGEND.map((item) => (
-              <div key={item.label} className="inline-flex items-center gap-2">
-                <span className={cn("h-3.5 w-3.5 rounded-[4px] border", item.swatch)} />
-                <span className="text-xs text-muted-foreground">{item.label}</span>
-              </div>
-            ))}
-          </div>
+          {!focusMode && (
+            <div className="flex flex-wrap gap-2.5 rounded-lg border border-border/60 bg-background/35 p-3">
+              {STATE_LEGEND.map((item) => (
+                <div key={item.label} className="inline-flex items-center gap-2">
+                  <span className={cn("h-3.5 w-3.5 rounded-[4px] border", item.swatch)} />
+                  <span className="text-xs text-muted-foreground">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </section>

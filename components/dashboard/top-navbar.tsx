@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Brain, Clock3, Crown, FlaskConical } from "lucide-react";
+import { Activity, Brain, Clock3, Crown, FlaskConical, Theater } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function TopNavbar() {
+type TopNavbarProps = {
+  showFocusToggle?: boolean;
+  focusMode?: boolean;
+  onToggleFocusMode?: () => void;
+};
+
+export function TopNavbar({ showFocusToggle = false, focusMode = false, onToggleFocusMode }: TopNavbarProps) {
   const pathname = usePathname();
   const isBenchmark = pathname?.startsWith("/benchmark");
 
@@ -28,6 +34,19 @@ export function TopNavbar() {
         </div>
 
         <div className="flex items-center gap-2">
+          {showFocusToggle && (
+            <button
+              type="button"
+              onClick={onToggleFocusMode}
+              className={cn(
+                buttonVariants({ variant: focusMode ? "default" : "outline", size: "sm" }),
+                "gap-1.5"
+              )}
+            >
+              <Theater className="h-3.5 w-3.5" />
+              {focusMode ? "Exit Focus" : "Focus Mode"}
+            </button>
+          )}
           <Link href="/" className={cn(buttonVariants({ variant: isBenchmark ? "outline" : "default", size: "sm" }))}>
             Solver
           </Link>
