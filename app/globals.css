@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 227 45% 6%;
+    --foreground: 220 24% 94%;
+
+    --card: 230 36% 9%;
+    --card-foreground: 220 22% 92%;
+
+    --popover: 230 38% 8%;
+    --popover-foreground: 220 20% 90%;
+
+    --primary: 177 92% 61%;
+    --primary-foreground: 227 48% 9%;
+
+    --secondary: 230 27% 16%;
+    --secondary-foreground: 220 16% 88%;
+
+    --muted: 231 24% 14%;
+    --muted-foreground: 220 10% 70%;
+
+    --accent: 197 84% 56%;
+    --accent-foreground: 225 40% 10%;
+
+    --border: 229 27% 20%;
+    --input: 229 22% 18%;
+    --ring: 177 92% 61%;
+
+    --radius: 0.9rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-sora), sans-serif;
+    background:
+      radial-gradient(circle at 0% 0%, rgba(31, 93, 135, 0.24), transparent 35%),
+      radial-gradient(circle at 100% 0%, rgba(14, 154, 145, 0.22), transparent 32%),
+      radial-gradient(circle at 100% 100%, rgba(43, 45, 102, 0.4), transparent 48%),
+      hsl(var(--background));
+    background-attachment: fixed;
+    color: hsl(var(--foreground));
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: rgba(92, 240, 221, 0.25);
+  }
+
+  button,
+  [role="button"] {
+    transition:
+      transform 140ms ease,
+      box-shadow 180ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease;
+  }
+}
+
+@layer utilities {
+  .mono {
+    font-family: var(--font-space-grotesk), monospace;
+  }
+}
