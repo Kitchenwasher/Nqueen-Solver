@@ -1,4 +1,5 @@
 import type { CellCoordinate, SearchStrategy, SolverMoveState } from "@/types/chessboard";
+import type { SolverConstraints } from "@/lib/solvers/constraints";
 
 export type SolverEventType =
   | "trying-move"
@@ -32,6 +33,7 @@ export type SolveFirstOptions = {
   boardSize: number;
   symmetryEnabled?: boolean;
   searchStrategy?: SearchStrategy;
+  constraints?: SolverConstraints;
   onFrame?: (frame: SolverFrame) => void;
   shouldStop: () => boolean;
   waitForPacing?: () => Promise<void>;
@@ -78,6 +80,7 @@ export type FindAllOptions = {
   boardSize: number;
   symmetryEnabled?: boolean;
   searchStrategy?: SearchStrategy;
+  constraints?: SolverConstraints;
   shouldStop: () => boolean;
   maxStoredSolutions: number;
   countOnly?: boolean;

@@ -177,6 +177,25 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
               </div>
             </article>
 
+            {analytics.constraints && (
+              <article className={compactCardClass}>
+                <div className="mb-2 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Constraint Analytics</p>
+                  <Grid2x2 className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div className="space-y-1 text-xs">
+                  <p className="text-muted-foreground">Constraint count: {analytics.constraints.totalCount}</p>
+                  <p className="text-muted-foreground">Blocked: {analytics.constraints.blockedCount}</p>
+                  <p className="text-muted-foreground">Forbidden: {analytics.constraints.forbiddenCount}</p>
+                  <p className="text-muted-foreground">Pre-placed: {analytics.constraints.prePlacedCount}</p>
+                  <p className="text-muted-foreground">
+                    Constrained branch pruning: {analytics.constraints.constrainedBranchesPruned}
+                  </p>
+                  <p className="font-semibold capitalize">Result: {analytics.constraints.solvability}</p>
+                </div>
+              </article>
+            )}
+
             <article className={compactCardClass}>
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">Strategy Time Comparison</p>

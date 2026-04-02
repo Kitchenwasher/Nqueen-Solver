@@ -2,6 +2,12 @@ import type { CellCoordinate, SolverAlgorithm, SolverMoveState } from "@/types/c
 import { orderColumnsByStrategy } from "@/lib/solvers/branch-ordering";
 import { findAllBitmask, solveBitmaskFirst } from "@/lib/solvers/bitmaskSolver";
 import {
+  normalizeConstraints,
+  rowDisallowedMask,
+  shouldDisableSymmetry,
+  validateConstraints
+} from "@/lib/solvers/constraints";
+import {
   createPruningStats,
   hasFutureFeasibleRowsSets,
   hasRemainingColumnCapacitySets
@@ -93,6 +99,7 @@ function createFrameEmitter(
 async function solveClassicFirst({
   boardSize,
   searchStrategy = "left-to-right",
+  constraints,
   onFrame,
   shouldStop,
   waitForPacing
@@ -100,6 +107,20 @@ async function solveClassicFirst({
   const queensByRow = Array.from({ length: boardSize }, () => -1);
   const stats: SolverStats = { step: 0, recursiveCalls: 0, backtracks: 0, solutionsFound: 0 };
   const emitFrame = createFrameEmitter(onFrame, waitForPacing, queensByRow, stats);
+  const normalizedConstraints = normalizeConstraints(boardSize, constraints);
+  const constraintValidation = validateConstraints(boardSize, normalizedConstraints);
+
+  if (!constraintValidation.valid) {
+    return {
+      solved: false,
+      queensByRow,
+      recursiveCalls: 0,
+      backtracks: 0,
+      solutionsFound: 0,
+      symmetry: createSymmetryStats(boardSize, false),
+      pruning: createPruningStats(false, 0, 1, 1)
+    };
+  }
 
   async function backtrack(row: number): Promise<boolean> {
     stats.recursiveCalls += 1;
@@ -114,8 +135,31 @@ async function solveClassicFirst({
       return true;
     }
 
+    const fixedCol = normalizedConstraints.fixedQueensByRow[row];
+    if (fixedCol >= 0) {
+      const activeCell = { row, col: fixedCol };
+      await emitFrame("trying-move", "trying", activeCell, `Trying fixed queen row ${row + 1}, column ${fixedCol + 1}.`, row + 1);
+      if (!isSafePosition(queensByRow, row, fixedCol)) {
+        await emitFrame("invalid-move", "invalid", activeCell, "Fixed queen conflicts with current path.", row + 1);
+        return false;
+      }
+      queensByRow[row] = fixedCol;
+      await emitFrame("queen-placed", "valid", activeCell, "Fixed queen placed.", row + 1);
+      const solvedFixed = await backtrack(row + 1);
+      if (solvedFixed) {
+        return true;
+      }
+      queensByRow[row] = -1;
+      stats.backtracks += 1;
+      await emitFrame("backtracking", "backtracking", activeCell, "Backtracking from fixed queen.", row + 1);
+      return false;
+    }
+
+    const disallowedMask = rowDisallowedMask(normalizedConstraints, row);
+    const candidateColumns = Array.from({ length: boardSize }, (_, col) => col).filter((col) => (disallowedMask & (1 << col)) === 0);
+
     const columns = orderColumnsByStrategy(
-      Array.from({ length: boardSize }, (_, col) => col),
+      candidateColumns,
       boardSize,
       searchStrategy,
       (col) => {
@@ -180,6 +224,7 @@ async function solveOptimizedFirst({
   boardSize,
   symmetryEnabled = false,
   searchStrategy = "left-to-right",
+  constraints,
   onFrame,
   shouldStop,
   waitForPacing
@@ -187,6 +232,21 @@ async function solveOptimizedFirst({
   const queensByRow = Array.from({ length: boardSize }, () => -1);
   const stats: SolverStats = { step: 0, recursiveCalls: 0, backtracks: 0, solutionsFound: 0 };
   const emitFrame = createFrameEmitter(onFrame, waitForPacing, queensByRow, stats);
+  const normalizedConstraints = normalizeConstraints(boardSize, constraints);
+  const constraintValidation = validateConstraints(boardSize, normalizedConstraints);
+  const symmetryAllowed = symmetryEnabled && !shouldDisableSymmetry(symmetryEnabled, normalizedConstraints);
+
+  if (!constraintValidation.valid) {
+    return {
+      solved: false,
+      queensByRow,
+      recursiveCalls: 0,
+      backtracks: 0,
+      solutionsFound: 0,
+      symmetry: createSymmetryStats(boardSize, false),
+      pruning: createPruningStats(true, 0, 1, 1)
+    };
+  }
 
   const columns = new Set<number>();
   const diagonals = new Set<number>();
@@ -221,10 +281,12 @@ async function solveOptimizedFirst({
       return false;
     }
 
-    if (row === 0) {
-      const rootBranches = getRootBranches(boardSize, symmetryEnabled);
-      const orderedRootBranches = orderColumnsByStrategy(
-        rootBranches.map((branch) => branch.col),
+    const disallowedMask = rowDisallowedMask(normalizedConstraints, row);
+
+      if (row === 0) {
+        const rootBranches = getRootBranches(boardSize, symmetryAllowed).filter((branch) => (disallowedMask & (1 << branch.col)) === 0);
+        const orderedRootBranches = orderColumnsByStrategy(
+          rootBranches.map((branch) => branch.col),
         boardSize,
         searchStrategy,
         (col) => {
@@ -291,10 +353,10 @@ async function solveOptimizedFirst({
       return false;
     }
 
-    const columnsToTry = orderColumnsByStrategy(
-      Array.from({ length: boardSize }, (_, col) => col),
-      boardSize,
-      searchStrategy,
+      const columnsToTry = orderColumnsByStrategy(
+        Array.from({ length: boardSize }, (_, col) => col).filter((col) => (disallowedMask & (1 << col)) === 0),
+        boardSize,
+        searchStrategy,
       (col) => {
         const diagonal = row - col;
         const antiDiagonal = row + col;
@@ -370,7 +432,7 @@ async function solveOptimizedFirst({
     recursiveCalls: stats.recursiveCalls,
     backtracks: stats.backtracks,
     solutionsFound: stats.solutionsFound,
-    symmetry: createSymmetryStats(boardSize, symmetryEnabled),
+    symmetry: createSymmetryStats(boardSize, symmetryAllowed),
     pruning: createPruningStats(true, branchesPruned, deadStatesDetected, stats.recursiveCalls)
   };
 }
@@ -378,6 +440,7 @@ async function solveOptimizedFirst({
 async function findAllClassic({
   boardSize,
   searchStrategy = "left-to-right",
+  constraints,
   shouldStop,
   maxStoredSolutions,
   countOnly = false,
@@ -385,14 +448,28 @@ async function findAllClassic({
   onProgress
 }: Omit<FindAllNQueenOptions, "algorithm">) {
   const queensByRow = Array.from({ length: boardSize }, () => -1);
+  const normalizedConstraints = normalizeConstraints(boardSize, constraints);
+  const constraintValidation = validateConstraints(boardSize, normalizedConstraints);
   const solutions: number[][] = [];
   let recursiveCalls = 0;
   let backtracks = 0;
   let solutionsFound = 0;
   let nodeCounter = 0;
   let capped = false;
-  const branchesPruned = 0;
-  const deadStatesDetected = 0;
+  let branchesPruned = 0;
+  let deadStatesDetected = 0;
+
+  if (!constraintValidation.valid) {
+    return {
+      solutions,
+      recursiveCalls: 0,
+      backtracks: 0,
+      solutionsFound: 0,
+      capped: false,
+      symmetry: createSymmetryStats(boardSize, false),
+      pruning: createPruningStats(false, 0, 1, 1)
+    };
+  }
 
   const emitProgress = (latestRow: number | null, latestCol: number | null, searchDepth: number) => {
     onProgress?.({
@@ -433,8 +510,31 @@ async function findAllClassic({
       return;
     }
 
+    const fixedCol = normalizedConstraints.fixedQueensByRow[row];
+    if (fixedCol >= 0) {
+      emitProgress(row, fixedCol, row + 1);
+      await maybeYield();
+
+      if (!isSafePosition(queensByRow, row, fixedCol)) {
+        branchesPruned += 1;
+        deadStatesDetected += 1;
+        return;
+      }
+
+      queensByRow[row] = fixedCol;
+      emitProgress(row, fixedCol, row + 1);
+      await dfs(row + 1);
+      queensByRow[row] = -1;
+      backtracks += 1;
+      emitProgress(row, fixedCol, row + 1);
+      await maybeYield();
+      return;
+    }
+
+    const disallowedMask = rowDisallowedMask(normalizedConstraints, row);
+
     const columns = orderColumnsByStrategy(
-      Array.from({ length: boardSize }, (_, col) => col),
+      Array.from({ length: boardSize }, (_, col) => col).filter((col) => (disallowedMask & (1 << col)) === 0),
       boardSize,
       searchStrategy,
       (col) => {

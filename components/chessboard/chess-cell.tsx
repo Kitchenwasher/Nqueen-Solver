@@ -42,9 +42,19 @@ export function ChessCell({
   disabled = false,
   onClick
 }: ChessCellProps) {
-  const isQueen = state === "queen" || state === "conflicting";
+  const isQueen = state === "queen" || state === "conflicting" || state === "preplaced";
   const marker =
-    state === "invalid" ? "!" : state === "backtracking" ? "<" : state === "trying" || state === "attacked" ? "x" : ".";
+    state === "invalid"
+      ? "!"
+      : state === "backtracking"
+        ? "<"
+        : state === "blocked"
+          ? "#"
+          : state === "forbidden"
+            ? "!"
+            : state === "trying" || state === "attacked"
+              ? "x"
+              : ".";
   const showHeatmap = heatmapMode !== "off" && heatmapLevel > 0;
   const heatmapOpacity = Math.min(0.12 + heatmapLevel * 0.72, 0.84);
 
@@ -70,8 +80,11 @@ export function ChessCell({
         state === "backtracking" &&
           "border-fuchsia-300/50 bg-fuchsia-500/15 shadow-[0_0_0_1px_rgba(244,114,182,0.28)]",
         state === "queen" && "border-primary/50 bg-primary/15",
+        state === "preplaced" && "border-emerald-300/60 bg-emerald-500/20 shadow-[0_0_0_1px_rgba(52,211,153,0.25)]",
         state === "conflicting" &&
           "border-rose-400/60 bg-rose-500/18 shadow-[0_0_0_1px_rgba(251,113,133,0.35)]",
+        state === "blocked" && "border-slate-500/60 bg-slate-800/75",
+        state === "forbidden" && "border-orange-400/60 bg-orange-500/18 shadow-[0_0_0_1px_rgba(251,146,60,0.3)]",
         isActive && "ring-2 ring-primary/85 ring-offset-1 ring-offset-background",
         showHeatmap && "backdrop-brightness-[1.03]"
       )}
@@ -91,7 +104,10 @@ export function ChessCell({
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.25, opacity: 0, y: -4 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
-            className={cn("pointer-events-none", state === "conflicting" ? "text-rose-200" : "text-primary")}
+            className={cn(
+              "pointer-events-none",
+              state === "conflicting" ? "text-rose-200" : state === "preplaced" ? "text-emerald-200" : "text-primary"
+            )}
           >
             <Crown className="h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6" />
           </motion.span>
@@ -107,6 +123,8 @@ export function ChessCell({
               state === "trying" && "text-sky-100/90",
               state === "invalid" && "text-rose-100",
               state === "backtracking" && "text-fuchsia-100/90",
+              state === "blocked" && "text-slate-200/80",
+              state === "forbidden" && "text-orange-100/90",
               state === "empty" && "text-slate-300/70"
             )}
           >

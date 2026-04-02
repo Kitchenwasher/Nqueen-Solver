@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
 import { runParallelNQueenSolver } from "@/lib/parallel/parallel-solver";
+import type { SolverConstraints } from "@/lib/solvers/constraints";
 import { getSearchStrategyLabel } from "@/lib/solvers/branch-ordering";
 import { createPruningStats } from "@/lib/solvers/pruning";
 import { createSymmetryStats } from "@/lib/solvers/symmetry";
@@ -45,6 +46,7 @@ type UseNQueenSolverOptions = {
   boardSize: BoardSize;
   setQueenCells: Dispatch<SetStateAction<string[]>>;
   setActiveCell: Dispatch<SetStateAction<CellCoordinate | null>>;
+  constraints?: SolverConstraints;
 };
 
 const DEFAULT_SPEED_MS = 130;
@@ -112,7 +114,7 @@ function formatFirstSolutionPath(queensByRow: number[]) {
   return placements.join(" -> ");
 }
 
-export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: UseNQueenSolverOptions) {
+export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, constraints }: UseNQueenSolverOptions) {
   const [phase, setPhase] = useState<SolverPhase>("idle");
   const [algorithm, setAlgorithm] = useState<SolverAlgorithm>("classic");
   const [mode, setMode] = useState<SolverMode>("auto");
@@ -162,6 +164,11 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
   const isBusy = useMemo(() => ["solving", "paused", "stepping", "enumerating"].includes(phase), [phase]);
   const totalStoredSolutions = storedSolutions.length;
+  const blockedCount = constraints?.blockedCells?.length ?? 0;
+  const forbiddenCount = constraints?.forbiddenCells?.length ?? 0;
+  const prePlacedCount = constraints?.prePlacedQueens?.length ?? 0;
+  const constraintCount = blockedCount + forbiddenCount + prePlacedCount;
+  const hasConstraints = constraintCount > 0;
 
   const appendLog = useCallback(
     (eventType: SolverEventType, message: string, row: number | null, col: number | null) => {
@@ -365,7 +372,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       return;
     }
 
-    const selectedAlgorithm = algorithmRef.current;
+    const preferredAlgorithm = algorithmRef.current;
+    const selectedAlgorithm = hasConstraints && preferredAlgorithm !== "classic" ? "classic" : preferredAlgorithm;
     const symmetryActiveForRun =
       symmetryEnabled && (selectedAlgorithm === "optimized" || selectedAlgorithm === "bitmask" || selectedAlgorithm === "parallel");
     const pruningActiveForRun = selectedAlgorithm === "optimized" || selectedAlgorithm === "bitmask" || selectedAlgorithm === "parallel";
@@ -383,6 +391,15 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     startedAtRef.current = Date.now();
     setSymmetryStats(createSymmetryStats(boardSize, symmetryActiveForRun));
     setPruningStats(createPruningStats(pruningActiveForRun, 0, 0, 0));
+
+    if (hasConstraints && preferredAlgorithm !== selectedAlgorithm) {
+      appendLog(
+        "worker-update",
+        "Constraints active: using Classic Backtracking for full constraint compatibility.",
+        null,
+        null
+      );
+    }
 
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, false, currentRunId);
@@ -432,6 +449,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       boardSize,
       symmetryEnabled,
       searchStrategy,
+      constraints,
       shouldStop: () => stopRef.current || runIdRef.current !== currentRunId,
       waitForPacing: async () => {
         if (modeRef.current === "auto") {
@@ -541,7 +559,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setActiveCell,
     setQueenCells,
     searchStrategy,
-    symmetryEnabled
+    symmetryEnabled,
+    constraints,
+    hasConstraints
   ]);
 
   const findAllSolutions = useCallback(async () => {
@@ -549,7 +569,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       return;
     }
 
-    const selectedAlgorithm = algorithmRef.current;
+    const preferredAlgorithm = algorithmRef.current;
+    const selectedAlgorithm = hasConstraints && preferredAlgorithm !== "classic" ? "classic" : preferredAlgorithm;
     const symmetryActiveForRun =
       symmetryEnabled && (selectedAlgorithm === "optimized" || selectedAlgorithm === "bitmask" || selectedAlgorithm === "parallel");
     const pruningActiveForRun = selectedAlgorithm === "optimized" || selectedAlgorithm === "bitmask" || selectedAlgorithm === "parallel";
@@ -567,6 +588,15 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     startedAtRef.current = Date.now();
     setSymmetryStats(createSymmetryStats(boardSize, symmetryActiveForRun));
     setPruningStats(createPruningStats(pruningActiveForRun, 0, 0, 0));
+
+    if (hasConstraints && preferredAlgorithm !== selectedAlgorithm) {
+      appendLog(
+        "worker-update",
+        "Constraints active: using Classic Backtracking for full constraint compatibility.",
+        null,
+        null
+      );
+    }
 
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, true, currentRunId);
@@ -627,6 +657,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       boardSize,
       symmetryEnabled,
       searchStrategy,
+      constraints,
       maxStoredSolutions,
       shouldStop: () => stopRef.current || runIdRef.current !== currentRunId,
       yieldEveryNodes: boardSize >= 12 ? 250 : 500,
@@ -718,7 +749,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setActiveCell,
     setQueenCells,
     searchStrategy,
-    symmetryEnabled
+    symmetryEnabled,
+    constraints,
+    hasConstraints
   ]);
 
   const runSelectedObjective = useCallback(async () => {
@@ -854,6 +887,14 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
         deadStatesDetected: pruningStats.deadStatesDetected,
         estimatedWorkSaved: pruningStats.estimatedWorkSaved
       },
+      constraints: {
+        totalCount: constraintCount,
+        blockedCount,
+        forbiddenCount,
+        prePlacedCount,
+        constrainedBranchesPruned: pruningStats.branchesPruned,
+        solvability: phase === "failed" ? "unsolvable" : phase === "solved" ? "solvable" : "unknown"
+      },
       parallel:
         algorithm === "parallel"
           ? {
@@ -892,6 +933,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       pruningStats.branchesPruned,
       pruningStats.deadStatesDetected,
       pruningStats.estimatedWorkSaved,
+      constraintCount,
+      blockedCount,
+      forbiddenCount,
+      prePlacedCount,
       symmetryStats.branchesSkipped,
       symmetryStats.effectiveSpeedup,
       symmetryStats.estimatedSearchReduction,

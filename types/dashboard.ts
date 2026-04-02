@@ -30,6 +30,14 @@ export type SolverAnalytics = {
     deadStatesDetected: number;
     estimatedWorkSaved: number;
   };
+  constraints?: {
+    totalCount: number;
+    blockedCount: number;
+    forbiddenCount: number;
+    prePlacedCount: number;
+    constrainedBranchesPruned: number;
+    solvability: "unknown" | "solvable" | "unsolvable";
+  };
   parallel?: {
     totalWorkers: number;
     activeWorkers: number;

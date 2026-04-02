@@ -10,11 +10,14 @@ export type CellCoordinate = {
 export type CellVisualState =
   | "empty"
   | "queen"
+  | "preplaced"
   | "attacked"
   | "conflicting"
   | "trying"
   | "invalid"
-  | "backtracking";
+  | "backtracking"
+  | "blocked"
+  | "forbidden";
 
 export type BoardValidationStatus = "valid" | "invalid" | "in-progress";
 

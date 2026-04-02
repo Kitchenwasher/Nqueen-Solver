@@ -8,6 +8,9 @@ import type { CellCoordinate, CellVisualState, HeatmapMode, SolverMoveState } fr
 type ChessboardProps = {
   boardSize: number;
   queens: Set<string>;
+  prePlacedQueens?: Set<string>;
+  blockedCells?: Set<string>;
+  forbiddenCells?: Set<string>;
   attackedCells: Set<string>;
   conflictingQueens: Set<string>;
   activeCell: CellCoordinate | null;
@@ -45,6 +48,9 @@ function getCellState(
   isExploredCell: boolean,
   exploredState: SolverMoveState,
   queens: Set<string>,
+  prePlacedQueens: Set<string>,
+  blockedCells: Set<string>,
+  forbiddenCells: Set<string>,
   attackedCells: Set<string>,
   conflictingQueens: Set<string>
 ): CellVisualState {
@@ -57,8 +63,17 @@ function getCellState(
   if (isExploredCell && exploredState === "backtracking") {
     return "backtracking";
   }
+  if (blockedCells.has(key)) {
+    return "blocked";
+  }
+  if (forbiddenCells.has(key)) {
+    return "forbidden";
+  }
   if (conflictingQueens.has(key)) {
     return "conflicting";
+  }
+  if (prePlacedQueens.has(key)) {
+    return "preplaced";
   }
   if (queens.has(key)) {
     return "queen";
@@ -72,6 +87,9 @@ function getCellState(
 export function Chessboard({
   boardSize,
   queens,
+  prePlacedQueens = new Set<string>(),
+  blockedCells = new Set<string>(),
+  forbiddenCells = new Set<string>(),
   attackedCells,
   conflictingQueens,
   activeCell,
@@ -114,7 +132,17 @@ export function Chessboard({
             const isActive = activeCell?.row === row && activeCell?.col === col;
             const isExploredCell = exploredCell?.row === row && exploredCell?.col === col;
             const isDarkSquare = (row + col) % 2 === 1;
-            const state = getCellState(key, isExploredCell, exploredState, queens, attackedCells, conflictingQueens);
+            const state = getCellState(
+              key,
+              isExploredCell,
+              exploredState,
+              queens,
+              prePlacedQueens,
+              blockedCells,
+              forbiddenCells,
+              attackedCells,
+              conflictingQueens
+            );
             const heatmapCount = heatmapCounts[key] ?? 0;
             const heatmapLevel = heatmapMax > 0 ? Math.min(heatmapCount / heatmapMax, 1) : 0;
 

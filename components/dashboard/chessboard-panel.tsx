@@ -42,6 +42,9 @@ type ChessboardPanelProps = {
 const STATE_LEGEND = [
   { label: "Trying Move", swatch: "bg-sky-500/20 border-sky-300/50" },
   { label: "Valid Move", swatch: "bg-primary/20 border-primary/45" },
+  { label: "Pre-placed", swatch: "bg-emerald-500/20 border-emerald-300/50" },
+  { label: "Blocked", swatch: "bg-slate-700/40 border-slate-400/40" },
+  { label: "Forbidden", swatch: "bg-orange-500/20 border-orange-300/50" },
   { label: "Invalid Move", swatch: "bg-rose-500/25 border-rose-300/55" },
   { label: "Backtracking", swatch: "bg-fuchsia-500/20 border-fuchsia-300/50" },
   { label: "Attacked", swatch: "bg-amber-400/20 border-amber-300/40" },
@@ -49,23 +52,36 @@ const STATE_LEGEND = [
 ] as const;
 
 type ValidationOrigin = "live" | "manual";
+type ConstraintEditMode = "preplace" | "blocked" | "forbidden" | "erase";
 
 export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPanelProps) {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [queenCells, setQueenCells] = useState<string[]>([]);
+  const [prePlacedQueenCells, setPrePlacedQueenCells] = useState<string[]>([]);
+  const [blockedCells, setBlockedCells] = useState<string[]>([]);
+  const [forbiddenCells, setForbiddenCells] = useState<string[]>([]);
+  const [constraintEditMode, setConstraintEditMode] = useState<ConstraintEditMode>("preplace");
   const [activeCell, setActiveCell] = useState<CellCoordinate | null>(null);
   const [validationOrigin, setValidationOrigin] = useState<ValidationOrigin>("live");
-  const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(true);
+  const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("off");
 
   const solver = useNQueenSolver({
     boardSize,
     setQueenCells,
-    setActiveCell
+    setActiveCell,
+    constraints: {
+      blockedCells,
+      forbiddenCells,
+      prePlacedQueens: prePlacedQueenCells
+    }
   });
   const { recommendation } = useHardwareProfile();
 
-  const queens = useMemo(() => new Set(queenCells), [queenCells]);
+  const prePlacedQueens = useMemo(() => new Set(prePlacedQueenCells), [prePlacedQueenCells]);
+  const blockedSet = useMemo(() => new Set(blockedCells), [blockedCells]);
+  const forbiddenSet = useMemo(() => new Set(forbiddenCells), [forbiddenCells]);
+  const queens = useMemo(() => new Set([...queenCells, ...prePlacedQueenCells]), [prePlacedQueenCells, queenCells]);
   const attackedCells = useMemo(() => getAttackedCells(queens, boardSize), [boardSize, queens]);
   const conflictingQueens = useMemo(() => getConflictingQueens(queens), [queens]);
   const validation = useMemo(
@@ -156,6 +172,10 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     (value: BoardSize) => {
       solver.reset();
       setBoardSize(value);
+      setQueenCells([]);
+      setPrePlacedQueenCells([]);
+      setBlockedCells([]);
+      setForbiddenCells([]);
       setValidationOrigin("live");
     },
     [solver]
@@ -171,14 +191,47 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
       setActiveCell(cell);
       setValidationOrigin("live");
 
-      setQueenCells((previous) => {
+      if (constraintEditMode === "erase") {
+        setPrePlacedQueenCells((previous) => previous.filter((key) => key !== clickedKey));
+        setBlockedCells((previous) => previous.filter((key) => key !== clickedKey));
+        setForbiddenCells((previous) => previous.filter((key) => key !== clickedKey));
+        return;
+      }
+
+      if (constraintEditMode === "preplace") {
+        setBlockedCells((previous) => previous.filter((key) => key !== clickedKey));
+        setForbiddenCells((previous) => previous.filter((key) => key !== clickedKey));
+        setPrePlacedQueenCells((previous) => {
+          if (previous.includes(clickedKey)) {
+            return previous.filter((queenKey) => queenKey !== clickedKey);
+          }
+          return [...previous, clickedKey];
+        });
+        return;
+      }
+
+      if (constraintEditMode === "blocked") {
+        setPrePlacedQueenCells((previous) => previous.filter((key) => key !== clickedKey));
+        setForbiddenCells((previous) => previous.filter((key) => key !== clickedKey));
+        setBlockedCells((previous) => {
+          if (previous.includes(clickedKey)) {
+            return previous.filter((key) => key !== clickedKey);
+          }
+          return [...previous, clickedKey];
+        });
+        return;
+      }
+
+      setPrePlacedQueenCells((previous) => previous.filter((key) => key !== clickedKey));
+      setBlockedCells((previous) => previous.filter((key) => key !== clickedKey));
+      setForbiddenCells((previous) => {
         if (previous.includes(clickedKey)) {
-          return previous.filter((queenKey) => queenKey !== clickedKey);
+          return previous.filter((key) => key !== clickedKey);
         }
         return [...previous, clickedKey];
       });
     },
-    [solver.isBusy]
+    [constraintEditMode, solver.isBusy]
   );
 
   const handleClearBoard = useCallback(() => {
@@ -187,6 +240,9 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     }
 
     setQueenCells([]);
+    setPrePlacedQueenCells([]);
+    setBlockedCells([]);
+    setForbiddenCells([]);
     setActiveCell(null);
     setValidationOrigin("live");
   }, [solver.isBusy]);
@@ -317,6 +373,9 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 </Badge>
               )}
               <Badge variant="outline">{queens.size} Queens</Badge>
+              <Badge variant="outline">{prePlacedQueenCells.length} Pre-placed</Badge>
+              <Badge variant="outline">{blockedCells.length} Blocked</Badge>
+              <Badge variant="outline">{forbiddenCells.length} Forbidden</Badge>
               <Badge variant="outline">{conflictingQueens.size} Conflicts</Badge>
               <Badge variant="outline">{Math.max(attackedCells.size - queens.size, 0)} Attacked Cells</Badge>
               {solver.exploredCell && (
@@ -337,6 +396,9 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
             <Chessboard
               boardSize={boardSize}
               queens={queens}
+              prePlacedQueens={prePlacedQueens}
+              blockedCells={blockedSet}
+              forbiddenCells={forbiddenSet}
               attackedCells={attackedCells}
               conflictingQueens={conflictingQueens}
               activeCell={activeCell}
@@ -456,6 +518,47 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   disabled={solver.isBusy}
                 >
                   Heuristic Search
+                </Button>
+              </div>
+              {(blockedCells.length > 0 || forbiddenCells.length > 0 || prePlacedQueenCells.length > 0) && solver.algorithm !== "classic" && (
+                <p className="text-xs text-muted-foreground">
+                  Constraints are active. Solver execution will use Classic Backtracking for full compatibility.
+                </p>
+              )}
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Constraint Editor</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={constraintEditMode === "preplace" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConstraintEditMode("preplace")}
+                  disabled={solver.isBusy}
+                >
+                  Pre-place Queens
+                </Button>
+                <Button
+                  variant={constraintEditMode === "blocked" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConstraintEditMode("blocked")}
+                  disabled={solver.isBusy}
+                >
+                  Block Cells
+                </Button>
+                <Button
+                  variant={constraintEditMode === "forbidden" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConstraintEditMode("forbidden")}
+                  disabled={solver.isBusy}
+                >
+                  Forbid Cells
+                </Button>
+                <Button
+                  variant={constraintEditMode === "erase" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setConstraintEditMode("erase")}
+                  disabled={solver.isBusy}
+                >
+                  Erase Cell
                 </Button>
               </div>
 
