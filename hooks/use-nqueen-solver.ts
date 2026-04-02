@@ -49,6 +49,15 @@ type UseNQueenSolverOptions = {
   constraints?: SolverConstraints;
 };
 
+export type ParallelWorkerLiveState = {
+  workerId: number;
+  status: "idle" | "active" | "completed";
+  currentTask: string | null;
+  taskStartedAt: number | null;
+  taskDurationMs: number;
+  solutionsFound: number;
+};
+
 const DEFAULT_SPEED_MS = 130;
 const MAX_LOGS = 200;
 const DEFAULT_SYMMETRY_STATS: SymmetryStats = {
@@ -145,6 +154,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   const [parallelTasksTotal, setParallelTasksTotal] = useState(0);
   const [parallelSplitDepthUsed, setParallelSplitDepthUsed] = useState(0);
   const [parallelLoadBalancingEffectiveness, setParallelLoadBalancingEffectiveness] = useState(0);
+  const [parallelWorkerStates, setParallelWorkerStates] = useState<ParallelWorkerLiveState[]>([]);
   const [timeToFirstSolutionMs, setTimeToFirstSolutionMs] = useState<number | null>(null);
   const [timeToAllSolutionsMs, setTimeToAllSolutionsMs] = useState<number | null>(null);
   const [firstSolutionPath, setFirstSolutionPath] = useState<string | null>(null);
@@ -221,6 +231,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setParallelTasksTotal(0);
     setParallelSplitDepthUsed(0);
     setParallelLoadBalancingEffectiveness(0);
+    setParallelWorkerStates([]);
     setTimeToFirstSolutionMs(null);
     setTimeToAllSolutionsMs(null);
     setFirstSolutionPath(null);
@@ -335,6 +346,51 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
           if (runIdRef.current !== currentRunId) {
             return;
           }
+
+          const workerMatch = message.match(/Worker\s+(\d+)/i);
+          const workerId = workerMatch ? Number(workerMatch[1]) : null;
+          if (workerId !== null && !Number.isNaN(workerId)) {
+            setParallelWorkerStates((previous) => {
+              const now = Date.now();
+              const existing = previous.find((entry) => entry.workerId === workerId);
+              const base: ParallelWorkerLiveState =
+                existing ?? {
+                  workerId,
+                  status: "idle",
+                  currentTask: null,
+                  taskStartedAt: null,
+                  taskDurationMs: 0,
+                  solutionsFound: 0
+                };
+
+              let next = base;
+              if (message.includes("solving branch")) {
+                const taskMatch = message.match(/solving branch\s+(.*)\./i);
+                next = {
+                  ...base,
+                  status: "active",
+                  currentTask: taskMatch?.[1] ?? base.currentTask,
+                  taskStartedAt: now
+                };
+              } else if (message.includes("completed task")) {
+                const solutionsMatch = message.match(/\((\d+)\s+solutions\)/i);
+                const solved = solutionsMatch ? Number(solutionsMatch[1]) : 0;
+                const startedAt = base.taskStartedAt ?? now;
+                next = {
+                  ...base,
+                  status: "completed",
+                  currentTask: null,
+                  taskStartedAt: null,
+                  taskDurationMs: Math.max(now - startedAt, 0),
+                  solutionsFound: base.solutionsFound + (Number.isNaN(solved) ? 0 : solved)
+                };
+              }
+
+              const withoutCurrent = previous.filter((entry) => entry.workerId !== workerId);
+              return [...withoutCurrent, next].sort((a, b) => a.workerId - b.workerId);
+            });
+          }
+
           appendLog("worker-update", message, null, null);
         },
         onProgress: (progress) => {
@@ -346,6 +402,26 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
           setParallelActiveWorkers(progress.activeWorkers);
           setParallelTasksCompleted(progress.tasksCompleted);
           setParallelTasksTotal(progress.tasksTotal);
+          setParallelWorkerStates((previous) => {
+            if (progress.totalWorkers <= 0) {
+              return previous;
+            }
+            const byId = new Map(previous.map((entry) => [entry.workerId, entry]));
+            const next: ParallelWorkerLiveState[] = [];
+            for (let workerId = 1; workerId <= progress.totalWorkers; workerId += 1) {
+              next.push(
+                byId.get(workerId) ?? {
+                  workerId,
+                  status: "idle",
+                  currentTask: null,
+                  taskStartedAt: null,
+                  taskDurationMs: 0,
+                  solutionsFound: 0
+                }
+              );
+            }
+            return next;
+          });
           setParallelSplitDepthUsed(progress.splitDepthUsed);
           setParallelLoadBalancingEffectiveness(progress.loadBalancingEffectiveness);
           setRecursiveCalls(progress.recursiveCalls);
@@ -899,6 +975,14 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
         algorithm === "parallel"
           ? {
               totalWorkers: parallelTotalWorkers,
+              workers: parallelWorkerStates.map((worker) => ({
+                workerId: worker.workerId,
+                status: worker.status,
+                currentTask: worker.currentTask,
+                taskDurationMs:
+                  worker.status === "active" && worker.taskStartedAt ? Math.max(Date.now() - worker.taskStartedAt, 0) : worker.taskDurationMs,
+                solutionsFound: worker.solutionsFound
+              })),
               activeWorkers: parallelActiveWorkers,
               tasksCompleted: parallelTasksCompleted,
               tasksRemaining: Math.max(parallelTasksTotal - parallelTasksCompleted, 0),
@@ -919,6 +1003,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
       parallelTasksCompleted,
       parallelTasksTotal,
       parallelTotalWorkers,
+      parallelWorkerStates,
       parallelSplitDepthUsed,
       parallelLoadBalancingEffectiveness,
       phase,

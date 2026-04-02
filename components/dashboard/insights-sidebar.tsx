@@ -353,6 +353,42 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
                   <p className="text-sm font-semibold">{(analytics.parallel.loadBalancingEffectiveness * 100).toFixed(1)}%</p>
                 </div>
               </div>
+
+              {!!analytics.parallel.workers && analytics.parallel.workers.length > 0 && (
+                <div className="mt-2 rounded-md border border-border/50 bg-background/35 p-2">
+                  <p className="mb-2 text-xs text-muted-foreground">Live Worker Monitor</p>
+                  <div className="space-y-1.5">
+                    {analytics.parallel.workers.map((worker) => (
+                      <div
+                        key={`parallel-worker-${worker.workerId}`}
+                        className="rounded-md border border-border/40 bg-background/40 p-2"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold">Worker {worker.workerId}</p>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              worker.status === "active"
+                                ? "border-sky-300/30 bg-sky-500/15 text-sky-100"
+                                : worker.status === "completed"
+                                  ? "border-emerald-300/30 bg-emerald-500/15 text-emerald-100"
+                                  : "border-border/50 bg-secondary/40 text-muted-foreground"
+                            }
+                          >
+                            {worker.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Task: {worker.currentTask ?? (worker.status === "completed" ? "Completed task" : "Waiting")}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Duration: {formatElapsed(worker.taskDurationMs)} | Solutions: {worker.solutionsFound}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
           )}
 

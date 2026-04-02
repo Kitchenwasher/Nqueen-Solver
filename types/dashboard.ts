@@ -39,6 +39,13 @@ export type SolverAnalytics = {
     solvability: "unknown" | "solvable" | "unsolvable";
   };
   parallel?: {
+    workers?: Array<{
+      workerId: number;
+      status: "idle" | "active" | "completed";
+      currentTask: string | null;
+      taskDurationMs: number;
+      solutionsFound: number;
+    }>;
     totalWorkers: number;
     activeWorkers: number;
     tasksCompleted: number;
