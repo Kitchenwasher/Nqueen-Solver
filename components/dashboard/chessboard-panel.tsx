@@ -103,6 +103,10 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
     }
   }, [heatmapMode, heatmapSupported]);
 
+  /**
+   * Derives heatmap counters from solver logs and stored solutions.
+   * Parallel mode intentionally bypasses these maps for accuracy.
+   */
   const heatmaps = useMemo(() => {
     const exploration: Record<string, number> = {};
     const conflict: Record<string, number> = {};
@@ -188,6 +192,12 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
     [solver]
   );
 
+  /**
+   * Cell interaction router:
+   * - normal play toggles queens
+   * - edit modes mutate constraint sets
+   * - busy solver locks interactions
+   */
   const handleCellClick = useCallback(
     (cell: CellCoordinate) => {
       if (solver.isBusy) {
@@ -307,6 +317,10 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
     [solver]
   );
 
+  /**
+   * One-click profile-based recommendation application.
+   * Also aligns mode/split defaults for parallel recommendation.
+   */
   const handleApplyRecommendedSolver = useCallback(() => {
     if (solver.isBusy) {
       return;

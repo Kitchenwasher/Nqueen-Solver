@@ -5,6 +5,9 @@ export function getCellKey(row: number, col: number) {
   return `${row}:${col}`;
 }
 
+/**
+ * Parses serialized `row:col` cell key.
+ */
 export function parseCellKey(cellKey: string): CellCoordinate {
   const [row, col] = cellKey.split(":").map(Number);
   return { row, col };
@@ -14,6 +17,10 @@ export function placementsToKeys(placements: CellCoordinate[]) {
   return placements.map((placement) => getCellKey(placement.row, placement.col));
 }
 
+/**
+ * Expands queen placements into attacked cells (rows, columns, diagonals).
+ * Returned set may include queen positions; callers can subtract if needed.
+ */
 export function getAttackedCells(queenKeys: Set<string>, boardSize: number) {
   const attacked = new Set<string>();
 
@@ -56,6 +63,9 @@ export function getAttackedCells(queenKeys: Set<string>, boardSize: number) {
   return attacked;
 }
 
+/**
+ * Identifies queens that are in mutual conflict.
+ */
 export function getConflictingQueens(queenKeys: Set<string>) {
   const conflicting = new Set<string>();
   const queens = Array.from(queenKeys).map(parseCellKey);
@@ -83,6 +93,9 @@ export type BoardValidation = {
   message: string;
 };
 
+/**
+ * Board-level status summary used for validation badge messaging.
+ */
 export function getBoardValidation(boardSize: number, queenKeys: Set<string>, conflictingQueens: Set<string>): BoardValidation {
   if (conflictingQueens.size > 0) {
     return {

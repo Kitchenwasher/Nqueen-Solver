@@ -37,6 +37,9 @@ function resolveCapabilityTier(hardwareThreads: number | null, deviceMemoryGb: n
   return "entry";
 }
 
+/**
+ * Estimates whether browser/device is a good fit for parallel worker mode.
+ */
 function resolveParallelSuitability(
   workerSupported: boolean,
   hardwareThreads: number | null,
@@ -60,6 +63,10 @@ function resolveParallelSuitability(
   return "limited";
 }
 
+/**
+ * Reads browser-side capability hints.
+ * Safe fallback values are returned during SSR or unavailable APIs.
+ */
 export function detectHardwareProfile(): HardwareProfile {
   if (typeof navigator === "undefined" || typeof window === "undefined") {
     return {
@@ -95,6 +102,9 @@ export function detectHardwareProfile(): HardwareProfile {
   };
 }
 
+/**
+ * Maps hardware profile to a suggested default solver mode.
+ */
 export function getHardwareRecommendation(profile: HardwareProfile): HardwareRecommendation {
   if (profile.parallelSuitability === "excellent") {
     return {

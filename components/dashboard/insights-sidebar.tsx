@@ -41,6 +41,26 @@ function prettyStatus(status: string) {
 
 const compactCardClass = "rounded-lg border border-border/50 bg-background/30 p-3";
 
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function scoreToLabel(score: number) {
+  if (score >= 90) {
+    return "Excellent";
+  }
+  if (score >= 75) {
+    return "Strong";
+  }
+  if (score >= 60) {
+    return "Good";
+  }
+  if (score >= 45) {
+    return "Fair";
+  }
+  return "Developing";
+}
+
 export function InsightsSidebar({ className, analytics, performance, strategyPerformance }: InsightsSidebarProps) {
   const progressPercent = Math.min((analytics.searchDepth / Math.max(analytics.boardSize, 1)) * 100, 100);
   const classic = performance.classic;
@@ -70,6 +90,31 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
     "center-first": "Center First",
     heuristic: "Heuristic Search"
   };
+  const currentAlgorithmPerformance = performance[analytics.selectedAlgorithm];
+  const baselineClassicForBoard = performance.classic?.boardSize === analytics.boardSize ? performance.classic : undefined;
+
+  const pruningScore = clamp(analytics.pruning.estimatedWorkSaved * 100, 0, 100);
+  const speedupScore = baselineClassicForBoard
+    ? clamp((baselineClassicForBoard.elapsedMs / Math.max(analytics.elapsedMs, 1)) * 45, 0, 100)
+    : 55;
+  const utilizationScore =
+    analytics.selectedAlgorithm === "parallel" && analytics.parallel
+      ? clamp(
+          ((analytics.parallel.activeWorkers / Math.max(analytics.parallel.totalWorkers, 1)) * 60 +
+            analytics.parallel.loadBalancingEffectiveness * 40),
+          0,
+          100
+        )
+      : 65;
+  const searchEfficiencyScore =
+    currentAlgorithmPerformance && currentAlgorithmPerformance.solutionsFound > 0
+      ? clamp(100 - (currentAlgorithmPerformance.recursiveCalls / Math.max(currentAlgorithmPerformance.solutionsFound, 1)) * 0.0005, 0, 100)
+      : 60;
+  const timeScore = clamp(100 - Math.log10(Math.max(analytics.elapsedMs, 1)) * 25, 0, 100);
+
+  const overallEfficiencyScore = Math.round(
+    clamp(pruningScore * 0.22 + speedupScore * 0.22 + utilizationScore * 0.18 + searchEfficiencyScore * 0.2 + timeScore * 0.18, 0, 100)
+  );
 
   return (
     <aside className={className}>
@@ -91,6 +136,20 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
                 <Binary className="h-3.5 w-3.5 text-primary" />
               </div>
               <p className="text-sm font-semibold">{analytics.algorithm}</p>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Performance Score</p>
+                <Zap className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="text-lg font-semibold">{overallEfficiencyScore}/100</p>
+                <p className="text-muted-foreground">Solver Efficiency: {scoreToLabel(overallEfficiencyScore)}</p>
+                <p className="text-muted-foreground">Branch Pruning: {scoreToLabel(Math.round(pruningScore))}</p>
+                <p className="text-muted-foreground">Parallel Utilization: {scoreToLabel(Math.round(utilizationScore))}</p>
+                <p className="text-muted-foreground">Search Quality: {scoreToLabel(Math.round(searchEfficiencyScore))}</p>
+              </div>
             </article>
 
             <article className={compactCardClass}>

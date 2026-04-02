@@ -65,6 +65,9 @@ function buildTree(logs: SolverLogEntry[], visibleEvents: number): BuiltTree {
 
   const chronological = [...logs].reverse().slice(0, visibleEvents);
 
+  /**
+   * Extracts worker id from parallel log entries such as "Worker 3 ...".
+   */
   function parseWorkerId(message: string) {
     const match = message.match(/Worker\s+(\d+)/i);
     if (!match) {
@@ -73,6 +76,9 @@ function buildTree(logs: SolverLogEntry[], visibleEvents: number): BuiltTree {
     return Number(match[1]);
   }
 
+  /**
+   * Extracts root branch coordinates from worker status message.
+   */
   function parseBranchFromWorkerMessage(message: string) {
     const match = message.match(/row0-col(\d+)(?:,\s*row1-col(\d+))?/i);
     if (!match) {
@@ -92,6 +98,9 @@ function buildTree(logs: SolverLogEntry[], visibleEvents: number): BuiltTree {
     return { row0, row1 };
   }
 
+  /**
+   * Creates one rendered node and edge if sampling limit has not been reached.
+   */
   function createNode(parentId: string, row: number, col: number, step: number) {
     if (nodesMap.size >= NODE_LIMIT) {
       return null;
@@ -273,6 +282,9 @@ export function SearchTreeVisualizer({ logs, phase, boardSize }: SearchTreeVisua
   const MIN_ZOOM = 0.45;
   const MAX_ZOOM = 2.8;
 
+  /**
+   * Zooms while preserving cursor-anchored world position.
+   */
   const zoomAtPoint = (
     clientX: number,
     clientY: number,

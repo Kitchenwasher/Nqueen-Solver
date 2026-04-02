@@ -19,9 +19,11 @@ export function useHardwareProfile() {
   const [profile, setProfile] = useState<HardwareProfile>(UNKNOWN_PROFILE);
 
   useEffect(() => {
+    // Browser-only detection. This runs once after mount.
     setProfile(detectHardwareProfile());
   }, []);
 
+  // Derived recommendation memoized from current profile.
   const recommendation = useMemo(() => getHardwareRecommendation(profile), [profile]);
 
   return {

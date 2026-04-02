@@ -1,6 +1,9 @@
 import { countSetBits } from "@/lib/solvers/branch-ordering";
 import type { PruningStats } from "@/lib/solvers/types";
 
+/**
+ * Produces pruning analytics object from raw counters.
+ */
 export function createPruningStats(active: boolean, branchesPruned: number, deadStatesDetected: number, recursiveCalls: number): PruningStats {
   const total = recursiveCalls + branchesPruned;
   const estimatedWorkSaved = total > 0 ? branchesPruned / total : 0;
@@ -13,6 +16,10 @@ export function createPruningStats(active: boolean, branchesPruned: number, dead
   };
 }
 
+/**
+ * Fast feasibility check for future rows using bitmask occupancy.
+ * If any future row has zero candidates, this branch is unsalvageable.
+ */
 export function hasFutureFeasibleRowsBitmask(
   row: number,
   boardSize: number,
@@ -37,12 +44,18 @@ export function hasFutureFeasibleRowsBitmask(
   return true;
 }
 
+/**
+ * Ensures remaining free columns can still cover remaining rows.
+ */
 export function hasRemainingColumnCapacityBitmask(boardSize: number, row: number, columnsMask: number, fullMask: number) {
   const remainingRows = boardSize - row;
   const freeColumns = countSetBits(fullMask & ~columnsMask);
   return freeColumns >= remainingRows;
 }
 
+/**
+ * Set-based equivalent of future-feasibility pruning check.
+ */
 export function hasFutureFeasibleRowsSets(
   row: number,
   boardSize: number,
@@ -74,6 +87,9 @@ export function hasFutureFeasibleRowsSets(
   return true;
 }
 
+/**
+ * Set-based equivalent of remaining-column-capacity check.
+ */
 export function hasRemainingColumnCapacitySets(boardSize: number, row: number, columns: Set<number>) {
   const remainingRows = boardSize - row;
   const freeColumns = boardSize - columns.size;

@@ -97,6 +97,10 @@ export function BenchmarkLabShell() {
     });
   };
 
+  /**
+   * Runs benchmark matrix using current UI selections.
+   * Side effect: clears previous results and streams progress text.
+   */
   const handleStart = async () => {
     if (isRunning || isStressRunning) {
       return;
@@ -150,6 +154,9 @@ export function BenchmarkLabShell() {
     }
   };
 
+  /**
+   * Signals cooperative stop to active benchmark run.
+   */
   const handleStop = () => {
     stopRef.current = true;
   };

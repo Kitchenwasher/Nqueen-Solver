@@ -12,6 +12,10 @@ function bitToColumn(bit: number) {
   return Math.log2(bit) | 0;
 }
 
+/**
+ * Worker-side DFS for one pre-split branch.
+ * Receives pre-initialized masks/placements and explores from `startRow`.
+ */
 function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
   const { n, startRow, colsMask, diagMask, antiDiagMask, placements, findAll, maxStoredSolutions, id } = task;
   const fullMask = (1 << n) - 1;
@@ -25,6 +29,9 @@ function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
   let capped = false;
   const storedSolutions: number[][] = [];
 
+  /**
+   * Stores concrete solution up to cap while continuing total counting.
+   */
   function recordSolution() {
     solutionsFound += 1;
 
@@ -35,6 +42,9 @@ function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
     }
   }
 
+  /**
+   * Returns true only when first-solution mode can stop recursion early.
+   */
   function dfs(row: number, columns: number, diagonals: number, antiDiagonals: number): boolean {
     recursiveCalls += 1;
 

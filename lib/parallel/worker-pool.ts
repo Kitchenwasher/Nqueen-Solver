@@ -26,6 +26,9 @@ export class ParallelWorkerPool {
     }));
   }
 
+  /**
+   * Terminates all worker instances and marks pool as stopped.
+   */
   stop() {
     if (this.stopped) {
       return;
@@ -38,6 +41,10 @@ export class ParallelWorkerPool {
     });
   }
 
+  /**
+   * Runs provided tasks until queue is exhausted or stop condition is met.
+   * Scheduling model: work-stealing style assignment to next available worker.
+   */
   run(tasks: ParallelSolveTask[], handlers: RunHandlers): Promise<ParallelWorkerResult[]> {
     return new Promise((resolve) => {
       const results: ParallelWorkerResult[] = [];

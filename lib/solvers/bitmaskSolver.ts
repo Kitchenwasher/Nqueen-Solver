@@ -20,6 +20,10 @@ function bitToColumn(bit: number) {
   return 31 - Math.clz32(bit);
 }
 
+/**
+ * Shared frame emitter for bitmask first-solution mode.
+ * Emits a snapshot copy of `queensByRow` for visualization consumers.
+ */
 function createFrameEmitter(
   onFrame: SolveFirstOptions["onFrame"],
   waitForPacing: SolveFirstOptions["waitForPacing"],
@@ -54,6 +58,14 @@ function createFrameEmitter(
   };
 }
 
+/**
+ * Bitmask-based first-solution solver.
+ *
+ * State encoding:
+ * - `columnsMask`: occupied columns
+ * - `diagonalMask`: occupied major diagonals for current row
+ * - `antiDiagonalMask`: occupied minor diagonals for current row
+ */
 export async function solveBitmaskFirst({
   boardSize,
   symmetryEnabled = false,
@@ -164,6 +176,13 @@ export async function solveBitmaskFirst({
   };
 }
 
+/**
+ * Bitmask-based all-solutions solver.
+ * Supports:
+ * - symmetry mirroring at root
+ * - capped solution storage
+ * - count-only execution for benchmark/stress runs
+ */
 export async function findAllBitmask({
   boardSize,
   symmetryEnabled = false,

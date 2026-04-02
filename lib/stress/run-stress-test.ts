@@ -8,6 +8,9 @@ function createStopError() {
   return error;
 }
 
+/**
+ * Executes a time-bounded board-size sweep and reports stress-performance aggregates.
+ */
 export async function runStressTest(
   config: StressTestConfig,
   options?: {

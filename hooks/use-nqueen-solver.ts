@@ -75,12 +75,19 @@ const DEFAULT_PRUNING_STATS: PruningStats = {
   estimatedWorkSaved: 0
 };
 
+/**
+ * UI pacing helper used by auto-play and step-by-step modes.
+ */
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
     setTimeout(resolve, ms);
   });
 }
 
+/**
+ * Upper bound for how many concrete solutions we keep in memory.
+ * Counting continues even after this cap is reached.
+ */
 function getStorageCap(boardSize: number) {
   if (boardSize >= 16) {
     return 4000;
@@ -111,6 +118,10 @@ function getSolvingObjectiveLabel(objective: SolvingObjective) {
   return "Fastest First Solution";
 }
 
+/**
+ * Converts a queens-by-row solution into a readable path like:
+ * R1C1 -> R2C5 -> ...
+ */
 function formatFirstSolutionPath(queensByRow: number[]) {
   const placements = queensByRow
     .map((col, row) => (col >= 0 ? `R${row + 1}C${col + 1}` : null))
@@ -123,6 +134,13 @@ function formatFirstSolutionPath(queensByRow: number[]) {
   return placements.join(" -> ");
 }
 
+/**
+ * Central solver orchestration hook used by the dashboard board panel.
+ *
+ * Side effects:
+ * - Writes board state through provided setters (`setQueenCells`, `setActiveCell`)
+ * - Coordinates asynchronous solver runs and worker updates
+ */
 export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, constraints }: UseNQueenSolverOptions) {
   const [phase, setPhase] = useState<SolverPhase>("idle");
   const [algorithm, setAlgorithm] = useState<SolverAlgorithm>("classic");
@@ -180,6 +198,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   const constraintCount = blockedCount + forbiddenCount + prePlacedCount;
   const hasConstraints = constraintCount > 0;
 
+  /**
+   * Pushes a new log entry (newest-first) and keeps only the latest MAX_LOGS rows.
+   */
   const appendLog = useCallback(
     (eventType: SolverEventType, message: string, row: number | null, col: number | null) => {
       logStepRef.current += 1;
@@ -209,6 +230,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     }
   }, []);
 
+  /**
+   * Clears board-facing state without resetting algorithm comparison snapshots.
+   */
   const clearVisualState = useCallback(() => {
     setQueenCells([]);
     setActiveCell(null);
@@ -216,6 +240,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setMoveState(null);
   }, [setActiveCell, setQueenCells]);
 
+  /**
+   * Resets all counters/telemetry for a new run.
+   */
   const clearRuntimeMetrics = useCallback(() => {
     setLogs([]);
     setRecursiveCalls(0);
@@ -241,12 +268,18 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     logStepRef.current = 0;
   }, []);
 
+  /**
+   * Clears solution browsing state.
+   */
   const clearStoredSolutions = useCallback(() => {
     setStoredSolutions([]);
     setCurrentSolutionIndex(0);
     setAllSolutionsCapped(false);
   }, []);
 
+  /**
+   * Saves per-algorithm run summary for cross-algorithm comparison cards.
+   */
   const savePerformanceSnapshot = useCallback(
     (solverAlgorithm: SolverAlgorithm, summary: Omit<AlgorithmRunSummary, "boardSize">) => {
       const snapshot: AlgorithmRunSummary = {
@@ -261,6 +294,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     [boardSize]
   );
 
+  /**
+   * Saves per-strategy timing snapshots for first/all objective comparisons.
+   */
   const saveStrategySnapshot = useCallback(
     (solverAlgorithm: SolverAlgorithm, strategy: SearchStrategy, runKind: "first" | "all", elapsedMs: number) => {
       setPerformanceByStrategy((previous) => {
@@ -284,6 +320,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     [boardSize]
   );
 
+  /**
+   * Fully resets current run state and invalidates stale async callbacks.
+   */
   const reset = useCallback(() => {
     runIdRef.current += 1;
     stopRef.current = true;
@@ -297,6 +336,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     clearStoredSolutions();
   }, [clearRuntimeMetrics, clearStoredSolutions, clearVisualState, releaseStepWaiter]);
 
+  /**
+   * Pauses non-parallel auto-play runs.
+   */
   const pause = useCallback(() => {
     if (algorithmRef.current === "parallel") {
       return;
@@ -308,6 +350,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setPhase("paused");
   }, [phase]);
 
+  /**
+   * Resumes a paused non-parallel auto-play run.
+   */
   const resume = useCallback(() => {
     if (algorithmRef.current === "parallel") {
       return;
@@ -319,6 +364,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setPhase("solving");
   }, [phase]);
 
+  /**
+   * Allows one more frame in step-by-step mode.
+   */
   const stepForward = useCallback(() => {
     if (phase !== "stepping") {
       return;
@@ -327,6 +375,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     releaseStepWaiter();
   }, [phase, releaseStepWaiter]);
 
+  /**
+   * Runs the parallel solver and maps worker logs/progress into hook state.
+   * Returns `null` when selected algorithm is not parallel.
+   */
   const runParallelMode = useCallback(
     async (selectedAlgorithm: SolverAlgorithm, findAll: boolean, currentRunId: number) => {
       if (selectedAlgorithm !== "parallel") {
@@ -443,6 +495,11 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     [appendLog, boardSize, manualSplitDepth, searchStrategy, splitDepthMode, symmetryEnabled]
   );
 
+  /**
+   * Executes first-solution objective for the selected algorithm.
+   * If constraints are active, non-classic selections fall back to classic
+   * to preserve constraint compatibility.
+   */
   const findFirstSolution = useCallback(async () => {
     if (isBusy) {
       return;
@@ -640,6 +697,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     hasConstraints
   ]);
 
+  /**
+   * Executes all-solutions objective and stores solutions up to configured cap.
+   */
   const findAllSolutions = useCallback(async () => {
     if (isBusy) {
       return;
@@ -830,6 +890,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     hasConstraints
   ]);
 
+  /**
+   * Delegates to objective-specific execution based on current toggle.
+   */
   const runSelectedObjective = useCallback(async () => {
     if (solvingObjective === "enumerate-all") {
       await findAllSolutions();
@@ -839,6 +902,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     await findFirstSolution();
   }, [findAllSolutions, findFirstSolution, solvingObjective]);
 
+  /**
+   * Moves forward in stored solution list without re-running any solver.
+   */
   const goToNextSolution = useCallback(() => {
     if (isBusy || totalStoredSolutions === 0) {
       return;
@@ -852,6 +918,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     });
   }, [isBusy, setActiveCell, setQueenCells, storedSolutions, totalStoredSolutions]);
 
+  /**
+   * Moves backward in stored solution list without re-running any solver.
+   */
   const goToPreviousSolution = useCallback(() => {
     if (isBusy || totalStoredSolutions === 0) {
       return;
@@ -932,6 +1001,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     };
   }, [releaseStepWaiter]);
 
+  /**
+   * Normalized analytics model consumed by insights UI.
+   */
   const analytics: SolverAnalytics = useMemo(
     () => ({
       algorithm: getAlgorithmLabel(algorithm),

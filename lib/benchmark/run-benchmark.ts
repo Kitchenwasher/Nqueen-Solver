@@ -15,6 +15,9 @@ function createStopError() {
   return error;
 }
 
+/**
+ * Executes one benchmark case (board size + algorithm + mode) and returns raw metrics.
+ */
 async function runSingleCase(
   config: BenchmarkConfig,
   boardSize: number,
@@ -84,6 +87,9 @@ async function runSingleCase(
   };
 }
 
+/**
+ * Runs full benchmark matrix across selected board sizes/algorithms/runs.
+ */
 export async function runBenchmark(
   config: BenchmarkConfig,
   options?: {

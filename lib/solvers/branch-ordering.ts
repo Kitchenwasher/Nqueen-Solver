@@ -8,6 +8,9 @@ function centerDistance(col: number, boardSize: number) {
   return Math.abs(col - center);
 }
 
+/**
+ * User-facing label mapping for strategy badges/cards.
+ */
 export function getSearchStrategyLabel(strategy: SearchStrategy) {
   if (strategy === "center-first") {
     return "Center First";
@@ -18,6 +21,10 @@ export function getSearchStrategyLabel(strategy: SearchStrategy) {
   return "Left to Right";
 }
 
+/**
+ * Orders candidate columns according to selected search strategy.
+ * Optional scorer is used only by heuristic mode.
+ */
 export function orderColumnsByStrategy(
   columns: number[],
   boardSize: number,
@@ -47,6 +54,10 @@ export function orderColumnsByStrategy(
   });
 }
 
+/**
+ * Bitmask equivalent of `orderColumnsByStrategy`.
+ * Converts an available bitmask into ordered single-bit candidates.
+ */
 export function orderBitsByStrategy(
   availableMask: number,
   boardSize: number,
@@ -89,6 +100,9 @@ export function orderBitsByStrategy(
   });
 }
 
+/**
+ * Counts set bits in a 32-bit integer mask.
+ */
 export function countSetBits(value: number) {
   let x = value;
   let count = 0;

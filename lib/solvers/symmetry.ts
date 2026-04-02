@@ -6,6 +6,10 @@ type RootBranch = {
   isMiddle: boolean;
 };
 
+/**
+ * Returns root-row branches to explore under symmetry optimization.
+ * For symmetric runs, only left-half (and optional center for odd N) is explored.
+ */
 export function getRootBranches(boardSize: number, symmetryEnabled: boolean): RootBranch[] {
   if (!symmetryEnabled) {
     return Array.from({ length: boardSize }, (_, col) => ({ col, mirrorFactor: 1 as const, isMiddle: false }));
@@ -29,6 +33,9 @@ export function getRootBranches(boardSize: number, symmetryEnabled: boolean): Ro
   return branches;
 }
 
+/**
+ * Computes symmetry analytics used by insights cards.
+ */
 export function createSymmetryStats(boardSize: number, symmetryEnabled: boolean): SymmetryStats {
   const total = boardSize;
   const explored = symmetryEnabled ? Math.floor(boardSize / 2) + (boardSize % 2 === 1 ? 1 : 0) : boardSize;
@@ -46,6 +53,9 @@ export function createSymmetryStats(boardSize: number, symmetryEnabled: boolean)
   };
 }
 
+/**
+ * Mirrors a solution over the board's vertical center axis.
+ */
 export function mirrorSolution(queensByRow: number[], boardSize: number): number[] {
   const mirrored = new Array<number>(queensByRow.length);
 

@@ -63,6 +63,10 @@ function getBoardMaxWidth(boardSize: number, focusMode: boolean) {
   return 680;
 }
 
+/**
+ * Resolves visual state for one cell.
+ * Ordering matters: transient solver states should override static board tags.
+ */
 function getCellState(
   key: string,
   isExploredCell: boolean,

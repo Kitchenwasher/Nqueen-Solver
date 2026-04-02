@@ -14,6 +14,9 @@ export type NormalizedConstraints = {
   constraintCount: number;
 };
 
+/**
+ * Creates an empty constraint model for given board size.
+ */
 export function createEmptyConstraints(boardSize: number): NormalizedConstraints {
   return {
     blockedByRow: Array.from({ length: boardSize }, () => 0),
@@ -24,6 +27,10 @@ export function createEmptyConstraints(boardSize: number): NormalizedConstraints
   };
 }
 
+/**
+ * Normalizes sparse UI constraint arrays into row-indexed bitmasks.
+ * This format is fast for solver checks and supports validation.
+ */
 export function normalizeConstraints(boardSize: number, constraints?: SolverConstraints): NormalizedConstraints {
   if (!constraints) {
     return createEmptyConstraints(boardSize);
@@ -69,15 +76,26 @@ export function normalizeConstraints(boardSize: number, constraints?: SolverCons
   };
 }
 
+/**
+ * Combined blocked+forbidden mask for a specific row.
+ */
 export function rowDisallowedMask(constraints: NormalizedConstraints, row: number) {
   return (constraints.blockedByRow[row] ?? 0) | (constraints.forbiddenByRow[row] ?? 0);
 }
 
+/**
+ * True when a row/column is blocked by either blocked or forbidden constraints.
+ */
 export function isCellDisallowed(constraints: NormalizedConstraints, row: number, col: number) {
   const mask = rowDisallowedMask(constraints, row);
   return (mask & (1 << col)) !== 0;
 }
 
+/**
+ * Validates pre-placed queens:
+ * - must not be on disallowed cells
+ * - must not conflict with each other
+ */
 export function validateConstraints(boardSize: number, constraints: NormalizedConstraints) {
   const columns = new Set<number>();
   const diagonals = new Set<number>();
@@ -111,6 +129,10 @@ export function validateConstraints(boardSize: number, constraints: NormalizedCo
   return { valid: true, reason: null as string | null };
 }
 
+/**
+ * Symmetry optimization is disabled whenever constraints are present
+ * because mirrored branches are no longer guaranteed equivalent.
+ */
 export function shouldDisableSymmetry(baseEnabled: boolean, constraints: NormalizedConstraints) {
   if (!baseEnabled) {
     return true;

@@ -32,6 +32,9 @@ function shuffle<T>(values: T[]) {
   return copy;
 }
 
+/**
+ * Controls clue density by difficulty.
+ */
 function difficultyRatio(difficulty: ChallengeDifficulty) {
   if (difficulty === "easy") {
     return 0.55;
@@ -68,6 +71,10 @@ async function generateBaseSolution(boardSize: number) {
   return result.queensByRow;
 }
 
+/**
+ * Small bounded uniqueness check used by unique-continuation mode.
+ * Stops searching when two solutions are found.
+ */
 async function countSolutionsUpToTwo(boardSize: number, prePlacedQueens: string[]) {
   let stopWhenMany = false;
 
@@ -88,6 +95,10 @@ async function countSolutionsUpToTwo(boardSize: number, prePlacedQueens: string[
   return result.solutionsFound;
 }
 
+/**
+ * Generates a playable challenge board configuration.
+ * Side effects: none (pure result generation from solver outputs).
+ */
 export async function generateChallengeBoard({ boardSize, mode, difficulty }: GenerateChallengeOptions): Promise<GeneratedChallenge> {
   const solution = await generateBaseSolution(boardSize);
   const solutionKeys = keysFromSolution(solution);

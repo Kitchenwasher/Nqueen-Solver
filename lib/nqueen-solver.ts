@@ -31,6 +31,10 @@ export type FindAllNQueenOptions = FindAllOptions & {
   algorithm: SolverAlgorithm;
 };
 
+/**
+ * Baseline safety check for classic solver paths.
+ * Scans previously assigned rows to ensure no column/diagonal conflict.
+ */
 export function isSafePosition(queensByRow: number[], row: number, col: number) {
   for (let previousRow = 0; previousRow < row; previousRow += 1) {
     const placedCol = queensByRow[previousRow];
@@ -50,6 +54,9 @@ export function isSafePosition(queensByRow: number[], row: number, col: number) 
   return true;
 }
 
+/**
+ * Converts queens-by-row representation into board cell keys (`row:col`).
+ */
 export function queensByRowToKeys(queensByRow: number[]) {
   const keys: string[] = [];
 
@@ -62,6 +69,10 @@ export function queensByRowToKeys(queensByRow: number[]) {
   return keys;
 }
 
+/**
+ * Produces a frame emitter shared by classic/optimized first-solution solvers.
+ * It emits visualization frames and applies optional pacing delays.
+ */
 function createFrameEmitter(
   onFrame: ((frame: SolverFrame) => void) | undefined,
   waitForPacing: (() => Promise<void>) | undefined,
@@ -96,6 +107,12 @@ function createFrameEmitter(
   };
 }
 
+/**
+ * Classic recursive backtracking:
+ * - row-by-row placement
+ * - explicit safety scans
+ * - constraint-compatible path
+ */
 async function solveClassicFirst({
   boardSize,
   searchStrategy = "left-to-right",
@@ -220,6 +237,12 @@ async function solveClassicFirst({
   };
 }
 
+/**
+ * Optimized recursive backtracking:
+ * - set-based occupancy checks (columns/diagonals/anti-diagonals)
+ * - early dead-state pruning
+ * - optional root symmetry reduction
+ */
 async function solveOptimizedFirst({
   boardSize,
   symmetryEnabled = false,
@@ -437,6 +460,10 @@ async function solveOptimizedFirst({
   };
 }
 
+/**
+ * Enumerates all solutions using classic safety checks.
+ * Supports progress callbacks and optional count-only mode.
+ */
 async function findAllClassic({
   boardSize,
   searchStrategy = "left-to-right",
@@ -594,6 +621,10 @@ async function findAllClassic({
   };
 }
 
+/**
+ * Enumerates all solutions with optimized occupancy sets and optional symmetry.
+ * Can mirror root branches to avoid redundant exploration.
+ */
 async function findAllOptimized({
   boardSize,
   symmetryEnabled = false,
@@ -935,6 +966,9 @@ async function findAllOptimized({
   };
 }
 
+/**
+ * Dispatches first-solution solve to selected algorithm implementation.
+ */
 export async function solveNQueenBacktracking({ algorithm, ...rest }: SolveNQueenOptions) {
   if (algorithm === "bitmask") {
     return solveBitmaskFirst(rest);
@@ -945,6 +979,9 @@ export async function solveNQueenBacktracking({ algorithm, ...rest }: SolveNQuee
   return solveClassicFirst(rest);
 }
 
+/**
+ * Dispatches all-solutions solve to selected algorithm implementation.
+ */
 export async function findAllNQueenSolutions({ algorithm, ...rest }: FindAllNQueenOptions) {
   if (algorithm === "bitmask") {
     return findAllBitmask(rest);

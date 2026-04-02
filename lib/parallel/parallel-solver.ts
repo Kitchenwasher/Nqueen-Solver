@@ -34,10 +34,16 @@ type RunParallelOptions = {
   onProgress?: (progress: ParallelProgress) => void;
 };
 
+/**
+ * Converts a single-bit mask to zero-based column index.
+ */
 function bitToCol(bit: number) {
   return Math.log2(bit) | 0;
 }
 
+/**
+ * Selects worker pool size from hardware hints plus optional override.
+ */
 function safeWorkerCount(taskCount: number, preferredWorkerCount?: number) {
   const hardware = typeof navigator !== "undefined" ? navigator.hardwareConcurrency ?? 4 : 4;
   const safeByHardware = Math.max(1, Math.min(Math.max(hardware - 2, 1), 16));
@@ -48,6 +54,9 @@ function safeWorkerCount(taskCount: number, preferredWorkerCount?: number) {
   return Math.max(1, Math.min(preferred, taskCount));
 }
 
+/**
+ * Heuristic depth policy for auto split mode.
+ */
 function getAdaptiveSplitDepth(n: number): 0 | 1 | 2 {
   if (n <= 8) {
     return 0;
@@ -68,6 +77,9 @@ function clampSplitDepth(depth: number): 0 | 1 | 2 {
   return 1;
 }
 
+/**
+ * Estimates how evenly tasks were distributed across active workers.
+ */
 function calculateLoadBalancingEffectiveness(workerTaskCounts: number[], workerCount: number) {
   if (workerCount <= 1) {
     return 1;
@@ -99,6 +111,10 @@ function taskLabel(task: ParallelSolveTask) {
   return `row0-col${row0 + 1}`;
 }
 
+/**
+ * Generates independent top-level branches for worker execution.
+ * Split depth is intentionally shallow to limit overhead.
+ */
 function generateParallelTasks(
   n: number,
   findAll: boolean,
@@ -170,6 +186,12 @@ function generateParallelTasks(
   return tasks;
 }
 
+/**
+ * Main-thread parallel orchestration:
+ * - generates tasks
+ * - schedules them via worker pool
+ * - aggregates metrics and stored solutions
+ */
 export async function runParallelNQueenSolver({
   n,
   findAll,

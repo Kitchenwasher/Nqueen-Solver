@@ -42,6 +42,7 @@ export function ChessCell({
   disabled = false,
   onClick
 }: ChessCellProps) {
+  // Compact textual markers used for non-queen solver states.
   const isQueen = state === "queen" || state === "conflicting" || state === "preplaced";
   const marker =
     state === "invalid"
