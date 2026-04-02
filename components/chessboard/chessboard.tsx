@@ -129,6 +129,9 @@ export function Chessboard({
 }: ChessboardProps) {
   const boardMaxWidth = getBoardMaxWidth(boardSize, focusMode);
   const gridGapClass = boardSize >= 12 ? "gap-1 sm:gap-1.5" : "gap-1.5 sm:gap-2";
+  const activeAxisCell = exploredCell ?? activeCell;
+  const activeRow = activeAxisCell?.row ?? null;
+  const activeCol = activeAxisCell?.col ?? null;
 
   return (
     <div className="mx-auto w-full">
@@ -142,13 +145,16 @@ export function Chessboard({
           maxWidth: `${boardMaxWidth}px`
         }}
         className={cn(
-          "mx-auto w-full rounded-2xl border border-primary/35 bg-gradient-to-b from-slate-950/88 to-slate-950/65 p-2.5 shadow-[0_0_0_1px_rgba(112,238,221,0.2),0_30px_60px_rgba(2,6,26,0.7)] sm:p-3 md:p-4",
+          "relative mx-auto w-full overflow-hidden rounded-3xl border border-primary/35 bg-gradient-to-b from-slate-950/90 via-slate-950/82 to-slate-950/62 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_0_0_1px_rgba(112,238,221,0.2),0_30px_60px_rgba(2,6,26,0.7)] sm:p-3 md:p-4",
           focusMode && "border-primary/55 p-3 sm:p-4 md:p-5",
-          isSolvingActive && "shadow-[0_0_0_1px_rgba(120,255,236,0.44),0_0_34px_rgba(98,255,231,0.2),0_30px_60px_rgba(2,6,26,0.75)]"
+          isSolvingActive &&
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_0_1px_rgba(120,255,236,0.44),0_0_34px_rgba(98,255,231,0.2),0_30px_60px_rgba(2,6,26,0.75)]"
         )}
       >
+        <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_-10%,rgba(84,255,229,0.18),transparent_38%),radial-gradient(circle_at_0%_100%,rgba(64,123,255,0.12),transparent_40%)]" />
+        <span className="pointer-events-none absolute inset-[1px] rounded-[calc(1.4rem-1px)] border border-white/5" />
         <div
-          className={cn("grid", gridGapClass)}
+          className={cn("relative grid", gridGapClass)}
           style={{ gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))` }}
         >
           {Array.from({ length: boardSize * boardSize }).map((_, index) => {
@@ -171,6 +177,8 @@ export function Chessboard({
             );
             const heatmapCount = heatmapCounts[key] ?? 0;
             const heatmapLevel = heatmapMax > 0 ? Math.min(heatmapCount / heatmapMax, 1) : 0;
+            const isActiveRow = activeRow !== null && activeRow === row;
+            const isActiveCol = activeCol !== null && activeCol === col;
 
             return (
               <ChessCell
@@ -180,10 +188,13 @@ export function Chessboard({
                 state={state}
                 isActive={isActive}
                 isDarkSquare={isDarkSquare}
+                isActiveRow={isActiveRow}
+                isActiveCol={isActiveCol}
                 heatmapMode={heatmapMode}
                 heatmapLevel={heatmapLevel}
                 heatmapCount={heatmapCount}
                 disabled={isInteractionLocked}
+                isSolvingActive={isSolvingActive}
                 onClick={() => onCellClick({ row, col })}
               />
             );

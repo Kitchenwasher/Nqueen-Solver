@@ -3,10 +3,38 @@
 ## Overview
 
 QueenMind is an interactive N-Queen platform with solving, analysis, benchmarking, stress testing, and challenge-generation workflows.
+The UI now includes a final premium polish layer with subtle spotlight/glow effects, refined micro-interactions, and upgraded glass surfaces.
 
 ## Main App Sections
 
 ## 1. Solver Dashboard (`/`)
+
+### Navigation and Layout
+
+- Left sidebar navigation with quick tabs:
+  - Solver
+  - Benchmark Lab
+  - Challenge Lab
+  - Insights Lab
+  - Learn (jump)
+- Settings (jump)
+- Top action bar with:
+  - page title/subtitle
+  - quick actions
+  - focus mode toggle
+  - live solver badge
+  - hardware status badge
+  - multi-algorithm badge
+- Board-first center layout with optional right context rail
+- Focus mode still available for cinematic board emphasis
+- Responsive behavior:
+  - desktop persistent sidebar
+  - mobile slide-out navigation sheet
+  - animated active tab/section indicators
+- Solver workspace structure:
+  - Left Control Rail with collapsible groups (Board Setup, Algorithm, Mode, Strategy, Symmetry, Visualization Tools)
+  - Center Board Zone with hero board container, status strip, and polished playback area
+  - Right Insights Rail for analytics and hardware intelligence
 
 ### Board and Play
 
@@ -18,6 +46,12 @@ QueenMind is an interactive N-Queen platform with solving, analysis, benchmarkin
   - in-progress
 - Active explored-cell highlighting during solves
 - Live attacked/conflicting visualization
+- Premium board presentation layer:
+  - glass spotlight frame and subtle cinematic glow
+  - polished alternating tiles and hover feedback
+  - animated queen placement/removal motion
+  - clearer overlays for attacked/blocked/forbidden/conflicting states
+  - optional active row/column emphasis from solver traversal
 
 ### Algorithms
 
@@ -43,54 +77,19 @@ QueenMind is an interactive N-Queen platform with solving, analysis, benchmarkin
   - Left to Right
   - Center First
   - Heuristic Search
-
-### Parallel Controls
-
-- Auto Split Depth
-- Manual Split Depth (Depth 0 / 1 / 2)
-
-### Constraint Variant Editor
-
-- Play Queens
-- Pre-place Queens
-- Block Cells
-- Forbid Cells
-- Erase Cell
-
-Supported constraint scenarios:
-- blocked cells
-- forbidden positions
-- pre-placed queens
-- continuation from partial boards
-
-### Challenge / Puzzle Generator
-
-Challenge modes:
-- Partial Fill
-- Constrained
-- Unique Continuation
-- Limited Clue
-
-Difficulty:
-- Easy
-- Medium
-- Hard
-
-Actions:
-- Generate Challenge
-- Reveal Solution
+- Solving Objective controls are grouped under Search Strategy
+- Parallel split-depth controls are grouped under Search Strategy
+- Professional grouped control system:
+  - shadcn-based grouped sections with accordion hierarchy
+  - select/toggle/radio style controls based on intent
+  - active-state visual feedback with cyan accent glow
+  - separators and microcopy for better scanability
 
 ### Visualizers
 
-- Search Tree Visualizer
-  - Toggle ON/OFF
-  - Replay slider
-  - Pan and zoom
-- Search Heatmap modes
-  - Off
-  - Exploration
-  - Conflict
-  - Solution Frequency
+- Visualization Tools section includes:
+  - Search Tree Visualizer toggle
+  - Search Heatmap modes (Off, Exploration, Conflict, Solution Frequency)
 
 Note: heatmap is disabled for parallel algorithm selection.
 
@@ -105,6 +104,14 @@ Note: heatmap is disabled for parallel algorithm selection.
 - Clear Board
 - Validate Board
 - Previous / Next stored solution navigation
+- Speed slider in a dedicated tactile control pod beneath the board
+
+### Diagnostics Tabs
+
+- Tabbed diagnostics panel below the board:
+  - Live Log
+  - Search Tree
+  - Heatmap legend/validation context
 
 ### Focus Mode
 
@@ -114,21 +121,23 @@ Note: heatmap is disabled for parallel algorithm selection.
 ## 2. Insights Sidebar
 
 Live cards include:
-- Current algorithm
-- Performance score and qualitative badges
-- Solver status
-- Hardware intelligence and recommendations
-- Symmetry metrics
-- Search strategy timing
-- Solving objective timing (first/all)
-- Dead-state pruning metrics
-- Constraint analytics
-- Algorithm comparison (classic/optimized/bitmask)
-- Core counters (calls/backtracks/elapsed/etc.)
-- Parallel runtime telemetry
-- Live worker monitor (per-worker status/task/duration/solutions)
+- 1. Solver Status
+- 2. Runtime Counters
+- In Solver page right rail, only sections 1 and 2 are shown for compact readability.
+- Tooltip hints and progress bars for readability.
 
-## 3. Benchmark Lab (`/benchmark`)
+## 3. Insights Lab (`/insights`)
+
+- Dedicated full-page analytics view for higher readability.
+- Reuses the same metrics and calculations as the sidebar.
+- Shows expanded analytics sections (Performance, Hardware, Symmetry/Pruning, Strategy/Algorithm comparison, Parallel telemetry, Advanced Metrics).
+- Board and control panels are intentionally not shown on this page.
+
+## 4. Benchmark Lab (`/benchmark`)
+
+The page is organized as an internal two-tab lab:
+- Benchmark
+- Stress Test
 
 ### Benchmark Mode
 
@@ -160,16 +169,55 @@ Outputs:
 - max solved N
 - total nodes explored
 - elapsed time
+- estimated speedup
 - peak worker usage
 - total solutions found
 - nodes/sec and avg ms/board
 - per-N step table
+- live run-state indicator + progress bar
 
-## 4. Educational Panel
+## 5. Challenge Lab (`/challenges`)
 
-- Guided conceptual cards on N-Queen, backtracking, recursion, optimization, complexity, and CSP framing
+- Dedicated page for:
+  - Constraint Editor controls
+  - constraint editor workflows
+  - challenge generator workflows
+  - challenge metadata/actions
+- Uses existing solver logic and interactions from the main solver surface.
+- Opens with the advanced controls group expanded by default for faster access.
 
-## 5. Hardware-Aware UX
+Challenge modes:
+- Partial Fill
+- Constrained
+- Unique Continuation
+- Limited Clue
+
+Difficulty:
+- Easy
+- Medium
+- Hard
+
+Actions:
+- Generate Challenge
+- Reveal Solution
+
+## 6. Educational Panel
+
+- Premium learning experience with tabbed concept tracks and accordion deep dives
+- Dedicated sections:
+  - What is N-Queen?
+  - Backtracking
+  - Recursion
+  - Optimization
+  - Complexity
+  - Constraint Satisfaction framing
+- Includes:
+  - concept cards with mini callout blocks
+  - highlighted keyword badges
+  - collapsible explanation modules for each section
+  - premium glow/gradient card treatment and refined tab hierarchy for dashboard-quality presentation
+
+## 7. Hardware-Aware UX
 
 - Detects hardware threads, memory hints, worker support, security context, and capability tier
 - Recommends best solver mode and suggested board range

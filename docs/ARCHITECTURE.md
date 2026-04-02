@@ -6,6 +6,8 @@ QueenMind is a client-side interactive Next.js App Router application organized 
 
 - Solver Dashboard (`/`): interactive board, controls, logs, and insights
 - Benchmark Lab (`/benchmark`): repeatable performance comparison and stress testing
+- Challenge Lab (`/challenges`): dedicated advanced controls workspace focused on constraints and challenge generation
+- Insights Lab (`/insights`): full-width analytics workspace with more readable telemetry density
 
 The architecture is intentionally modular:
 
@@ -20,12 +22,20 @@ The architecture is intentionally modular:
 - `app/layout.tsx`: global shell (fonts, metadata, global CSS)
 - `app/(dashboard)/page.tsx`: dashboard entry
 - `app/benchmark/page.tsx`: benchmark entry
+- `app/challenges/page.tsx`: challenge lab entry
+- `app/insights/page.tsx`: insights lab entry
 
 2. Presentation Layer
 - `components/dashboard/*`: main solver experience
 - `components/chessboard/*`: board rendering primitives
 - `components/benchmark/*`: benchmark + stress test UI
 - `components/ui/*`: reusable styled building blocks
+- `components/app-shell/*`: shell composition wrappers
+- `components/shared/*`: cross-surface reusable UI primitives
+- `components/solver/*`: solver-focused presentation modules
+- `components/insights/*`: insights composition wrappers/cards
+- `components/dashboard/dashboard-app-shell.tsx`: shared premium shell (sidebar, top bar, content rail, right context rail)
+- `components/dashboard/navigation-sidebar.tsx`: shared left navigation/workspace switcher + section jumps
 
 3. State + Control Layer
 - `hooks/use-nqueen-solver.ts`: main solver state machine, metrics aggregation, mode/objective control, solution lifecycle
@@ -65,16 +75,32 @@ Outputs from solver hook:
 - Parallel telemetry and worker monitor state
 - Unified `SolverAnalytics` payload for the right insights panel
 
-The board panel is the command surface. The insights sidebar is the analytics surface.
+The board panel is the command surface. The insights sidebar is the analytics surface. `DashboardAppShell` supplies the shared structural frame (left nav, top action bar, transitions, right rail) across both routes.
 
 ## UI Flow
 
-1. User changes configuration in `ChessboardPanel`.
+1. User changes configuration from the left control rail in `ChessboardPanel` (Accordion groups).
+   Control intents are separated via `Select`/`ToggleGroup`/`RadioGroup` patterns to reduce ambiguity.
+   On main solver page, strategy/objective/parallel controls are grouped in the strategy section and visualization toggles are grouped in a dedicated visualization section.
+   Constraint/challenge control-room UI is hosted in Challenge Lab route.
 2. `useNQueenSolver` updates runtime mode and prepares execution context.
 3. Solver emits frames/progress updates.
-4. Board + logs + insights update live from shared hook state.
-5. Optional overlays (tree/heatmap) derive visual data from emitted logs/solutions.
-6. Benchmark and stress pages run independent orchestrators but reuse the same solver core.
+4. Center board hero zone updates state visuals and playback controls.
+5. Diagnostics tabs (log/tree/heatmap) render supporting context below the board.
+6. Right insights rail consumes analytics snapshots from shared hook output and presents them in grouped cards/tabs/accordion without changing calculation logic.
+7. Benchmark Lab route uses an internal tabbed workspace:
+   Benchmark tab for matrix comparisons and Stress Test tab for limit probing.
+   Benchmark surfaces are panelized into reusable sections (`BenchmarkConfigPanel`, `BenchmarkResultsTable`, `StressTestPanel`).
+8. Learn section uses a tabbed educational surface with concept cards and accordion deep dives, backed by static topic data and premium visual framing layers.
+9. Benchmark and stress flows run independent orchestrators but reuse the same solver core.
+10. Challenge Lab route reuses `ChessboardPanel` with the advanced accordion group open by default to prioritize constraint/challenge workflows.
+11. Insights Lab route reuses existing analytics wiring and renders `InsightsSidebar` in full-page mode for more space without metric logic changes.
+
+## Composition Strategy
+
+- Keep stateful logic in hooks/page-level orchestration layers.
+- Move presentation and layout concerns into reusable modules with consistent prop interfaces.
+- Compose pages from wrappers/panels to reduce monolithic JSX and improve maintainability.
 
 ## Solver Flow
 
@@ -119,5 +145,6 @@ The board panel is the command surface. The insights sidebar is the analytics su
 
 - Separation of concerns between UI, orchestration, and algorithms
 - Shared utility modules for reusable optimization logic
+- Shared visual primitives/effects for consistent premium interaction quality across routes
 - Incremental observability: every feature has measurable analytics
 - Responsiveness-first safeguards for larger board sizes (capping, sampling, yield points)

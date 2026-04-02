@@ -30,6 +30,9 @@
     --ring: 177 92% 61%;
 
     --radius: 0.9rem;
+    --radius-lg: 1rem;
+    --radius-xl: 1.1rem;
+    --panel-glow: 0 0 0 1px rgba(97, 255, 231, 0.22), 0 20px 42px rgba(4, 9, 30, 0.58);
   }
 
   * {
@@ -64,10 +67,128 @@
       background-color 180ms ease,
       border-color 180ms ease;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer utilities {
   .mono {
     font-family: var(--font-space-grotesk), monospace;
+  }
+
+  .glass-panel {
+    @apply border border-border/60 bg-background/45 backdrop-blur-xl;
+    box-shadow: var(--panel-glow);
+  }
+
+  .glow-border {
+    box-shadow:
+      0 0 0 1px rgba(98, 255, 232, 0.24),
+      0 0 0 6px rgba(98, 255, 232, 0.04),
+      0 20px 50px rgba(5, 10, 35, 0.58);
+  }
+
+  .hover-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hover-shine::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -120%;
+    width: 42%;
+    height: 100%;
+    transform: skewX(-18deg);
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0),
+      rgba(139, 255, 242, 0.14),
+      rgba(255, 255, 255, 0)
+    );
+    pointer-events: none;
+  }
+
+  .hover-shine:hover::before {
+    animation: shine 1.3s ease;
+  }
+
+  .status-pulse {
+    @apply animate-pulse-soft;
+  }
+
+  .card-lift {
+    transition:
+      transform 180ms ease,
+      box-shadow 220ms ease,
+      border-color 220ms ease;
+  }
+
+  .card-lift:hover {
+    transform: translateY(-1px);
+  }
+
+  .glass-elevated {
+    @apply border border-border/60 bg-background/45 backdrop-blur-xl;
+    box-shadow:
+      0 0 0 1px rgba(96, 255, 235, 0.16),
+      0 16px 42px rgba(4, 10, 34, 0.54);
+  }
+
+  .badge-animate {
+    transition:
+      transform 160ms ease,
+      background-color 180ms ease,
+      border-color 180ms ease,
+      color 180ms ease;
+  }
+
+  .badge-animate:hover {
+    transform: translateY(-1px);
+  }
+
+  .skeleton-shimmer {
+    background-image: linear-gradient(
+      110deg,
+      rgba(255, 255, 255, 0.02) 8%,
+      rgba(137, 255, 242, 0.18) 18%,
+      rgba(255, 255, 255, 0.03) 33%
+    );
+    background-size: 220% 100%;
+    animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  }
+
+  .panel-fade {
+    animation: panel-fade 220ms ease;
+  }
+}
+
+@keyframes panel-fade {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 120% 0;
+  }
+  100% {
+    background-position: -120% 0;
   }
 }

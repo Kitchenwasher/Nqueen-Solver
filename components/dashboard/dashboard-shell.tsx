@@ -1,13 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 
 import { ChessboardPanel } from "@/components/dashboard/chessboard-panel";
 import { ControlSidebar } from "@/components/dashboard/control-sidebar";
+import { DashboardAppShell } from "@/components/dashboard/dashboard-app-shell";
 import { EducationPanel } from "@/components/dashboard/education-panel";
-import { InsightsSidebar } from "@/components/dashboard/insights-sidebar";
-import { TopNavbar } from "@/components/dashboard/top-navbar";
+import { InsightsRail } from "@/components/insights/insights-rail";
+import { Button } from "@/components/ui/button";
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 const initialAnalytics: SolverAnalytics = {
@@ -42,11 +44,22 @@ const initialAnalytics: SolverAnalytics = {
   }
 };
 
+const sectionIdToKey = {
+  "solver-section": "solver",
+  "challenges-section": "challenges",
+  "learn-section": "learn",
+  "insights-section": "insights",
+  "settings-section": "settings"
+} as const;
+
+type DashboardSection = (typeof sectionIdToKey)[keyof typeof sectionIdToKey];
+
 export function DashboardShell() {
   const [analytics, setAnalytics] = useState<SolverAnalytics>(initialAnalytics);
   const [performance, setPerformance] = useState<AlgorithmPerformanceMap>({});
   const [strategyPerformance, setStrategyPerformance] = useState<StrategyPerformanceMap>({});
   const [focusMode, setFocusMode] = useState(false);
+  const [activeSection, setActiveSection] = useState<DashboardSection>("solver");
 
   const handleAnalyticsChange = (
     nextAnalytics: SolverAnalytics,
@@ -58,61 +71,78 @@ export function DashboardShell() {
     setStrategyPerformance(nextStrategyPerformance);
   };
 
+  const handleSectionNavigate = (sectionId: string) => {
+    const mapped = sectionIdToKey[sectionId as keyof typeof sectionIdToKey];
+    if (mapped) {
+      setActiveSection(mapped);
+    }
+
+    const node = document.getElementById(sectionId);
+    if (node) {
+      node.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
-    <div className={focusMode ? "relative min-h-screen bg-[#020610]" : "relative min-h-screen"}>
-      <div
-        className={
-          focusMode
-            ? "pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,255,220,0.08),transparent_62%)]"
-            : "pointer-events-none absolute inset-0 bg-grid-noise [background-size:22px_22px] opacity-20"
-        }
-      />
-
-      <TopNavbar showFocusToggle focusMode={focusMode} onToggleFocusMode={() => setFocusMode((current) => !current)} />
-
-      <main
-        className={
-          focusMode
-            ? "relative z-10 mx-auto flex w-full max-w-[2200px] flex-col gap-4 px-3 py-3 sm:px-4 lg:gap-4 lg:px-6 lg:py-4"
-            : "relative z-10 mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:gap-5 lg:px-8 lg:py-6"
-        }
-      >
-        <motion.section
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: "easeOut" }}
-          className={
-            focusMode
-              ? "grid grid-cols-1 gap-3 md:gap-4"
-              : "grid grid-cols-1 gap-4 md:gap-5 xl:grid-cols-[240px_minmax(0,1.5fr)_300px] xl:items-start"
-          }
-        >
-          <ChessboardPanel
-            className={focusMode ? "order-1 h-full" : "order-1 h-full xl:order-2"}
-            onAnalyticsChange={handleAnalyticsChange}
-            focusMode={focusMode}
+    <DashboardAppShell
+      page="solver"
+      title="Solver Workspace"
+      subtitle="Interactive N-Queen solving, constraints, and visual exploration in one premium lab."
+      showFocusToggle
+      focusMode={focusMode}
+      onToggleFocusMode={() => setFocusMode((current) => !current)}
+      quickActions={
+        <div className="hidden items-center gap-1.5 md:flex">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/benchmark">Open Benchmark</Link>
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleSectionNavigate("insights-section")}>
+            Open Insights
+          </Button>
+        </div>
+      }
+      activeSection={activeSection}
+      onSectionNavigate={handleSectionNavigate}
+      solverLiveLabel={focusMode ? "Focus Solve Live" : "Solver Live"}
+      rightPanel={
+        <div id="insights-section" className="h-full">
+          <InsightsRail
+            analytics={analytics}
+            performance={performance}
+            strategyPerformance={strategyPerformance}
+            className="h-full"
+            visibleSections="primary"
           />
-          {!focusMode && <ControlSidebar className="order-2 h-full xl:order-1" />}
-          {!focusMode && (
-            <InsightsSidebar
-              className="order-3 h-full xl:order-3"
-              analytics={analytics}
-              performance={performance}
-              strategyPerformance={strategyPerformance}
-            />
-          )}
+        </div>
+      }
+    >
+      <div className={focusMode ? "space-y-3" : "space-y-4"}>
+        <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.34, ease: "easeOut" }}>
+          <ChessboardPanel onAnalyticsChange={handleAnalyticsChange} focusMode={focusMode} />
         </motion.section>
 
         {!focusMode && (
           <motion.section
+            id="settings-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.38, ease: "easeOut", delay: 0.03 }}
+          >
+            <ControlSidebar />
+          </motion.section>
+        )}
+
+        {!focusMode && (
+          <motion.section
+            id="learn-section"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, ease: "easeOut", delay: 0.12 }}
+            transition={{ duration: 0.44, ease: "easeOut", delay: 0.06 }}
           >
             <EducationPanel />
           </motion.section>
         )}
-      </main>
-    </div>
+      </div>
+    </DashboardAppShell>
   );
 }

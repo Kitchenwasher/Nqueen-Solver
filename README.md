@@ -29,6 +29,15 @@ QueenMind is a production-style N-Queen platform built with Next.js, TypeScript,
   - Constrained
   - Unique Continuation
   - Limited Clue
+  - Premium puzzle control-room UI with structured config, metadata, and reveal flow
+- Premium Learn tab experience:
+  - Sectioned concept tracks (N-Queen, Backtracking, Recursion, Optimization, Complexity, CSP framing)
+  - Accordion deep dives and concept callout cards
+  - Startup-style glow/gradient visual polish for learning surfaces
+- Final global premium UI polish:
+  - subtle spotlight/grid layering
+  - glassmorphism panel refinement
+  - smoother micro-interactions, status pulses, and premium tab/panel transitions
   - Easy / Medium / Hard
 - Search Tree Visualizer (toggleable)
 - Search Heatmap overlays:
@@ -37,11 +46,23 @@ QueenMind is a production-style N-Queen platform built with Next.js, TypeScript,
   - Conflict
   - Solution Frequency
 - Focus Mode (cinematic board-first mode)
+- Premium dashboard shell:
+  - left sidebar navigation with route/section tabs
+  - top action bar with quick actions and live status badges
+  - optional right context rail for analytics/context cards
+  - responsive mobile navigation sheet
+- Solver workspace UX:
+  - left collapsible control rail (accordion groups)
+  - grouped professional controls (Select/ToggleGroup/RadioGroup/Tooltip/Separator)
+  - center board-first hero stage with polished playback controls
+  - tabbed diagnostics surface (log/tree/heatmap) below the board
 - Hardware detection with intelligent solver recommendation
 - One-click Apply Recommended Solver
-- Live analytics + worker monitor + performance score cards
+- Live analytics dashboard with sectioned metric cards, comparison tabs, advanced metrics accordion, and worker monitor
 - Benchmark Lab mode for cross-algorithm comparison
 - Stress Test mode for limit pushing and runtime profiling
+- Dedicated Challenge Lab page (`/challenges`) for objective, constraints, challenge generation, and advanced controls
+- Dedicated Insights Lab page (`/insights`) for full-width analytics review
 
 ## Screenshots
 
@@ -106,9 +127,15 @@ npm run lint
 4. Toggle symmetry and optional split depth controls.
 5. Run solve actions and inspect live logs + analytics.
 6. Use Benchmark Lab (`/benchmark`) for repeatable comparisons.
-7. Use Stress Test mode to evaluate upper limits.
-8. Use constraint editor/challenge generator for variant puzzles.
-9. Toggle Search Tree / Heatmap for visual exploration insight.
+7. Use Challenge Lab (`/challenges`) for a dedicated advanced challenge workspace.
+8. Use Insights Lab (`/insights`) for expanded analytics space.
+9. Use Stress Test mode to evaluate upper limits.
+10. Use constraint editor/challenge generator for variant puzzles.
+11. Toggle Search Tree / Heatmap for visual exploration insight.
+
+Main solver page note:
+- `Solving Objective` and `Parallel Split Depth` are grouped under `Search Strategy`.
+- `Search Tree` and `Heatmap` toggles are grouped under `Visualization Tools`.
 
 ## Folder Structure
 
@@ -119,11 +146,19 @@ QueenMind/
       page.tsx
     benchmark/
       page.tsx
+    challenges/
+      page.tsx
+    insights/
+      page.tsx
     globals.css
     layout.tsx
   components/
     benchmark/
       benchmark-lab-shell.tsx
+    challenges/
+      challenge-lab-shell.tsx
+    insights/
+      insights-page-shell.tsx
     chessboard/
       chessboard.tsx
       chess-cell.tsx
@@ -131,12 +166,20 @@ QueenMind/
       board-square.tsx
       chessboard-panel.tsx
       control-sidebar.tsx
+      dashboard-app-shell.tsx
       dashboard-shell.tsx
       education-panel.tsx
       hardware-info-card.tsx
       insights-sidebar.tsx
+      navigation-sidebar.tsx
       search-tree-visualizer.tsx
       top-navbar.tsx
+    effects/
+      animated-grid-background.tsx
+      glow-border.tsx
+      gradient-overlay.tsx
+      spotlight-background.tsx
+      status-pulse.tsx
     ui/
       badge.tsx
       button.tsx

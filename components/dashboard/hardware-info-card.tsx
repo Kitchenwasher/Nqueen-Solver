@@ -52,10 +52,11 @@ function prettyTier(value: "entry" | "balanced" | "high" | "enthusiast") {
 
 export function HardwareInfoCard({ currentAlgorithm, compactCardClass }: HardwareInfoCardProps) {
   const { profile, recommendation } = useHardwareProfile();
+  const isRecommended = currentAlgorithm === recommendation.recommendedAlgorithm;
 
   return (
     <article className={compactCardClass}>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <p className="text-xs text-muted-foreground">System Intelligence</p>
         <MonitorCog className="h-3.5 w-3.5 text-primary" />
       </div>
@@ -80,11 +81,13 @@ export function HardwareInfoCard({ currentAlgorithm, compactCardClass }: Hardwar
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1.5">
+        <Badge variant="outline">{isRecommended ? "Recommended" : "Optimized"}</Badge>
         <Badge variant="outline">{profile.workerSupported ? "Web Workers: supported" : "Web Workers: unavailable"}</Badge>
         <Badge variant="outline">{profile.isSecureContext ? "Secure context" : "Non-secure context"}</Badge>
         <Badge variant="outline">
           {profile.sharedArrayBufferSupported ? "SharedArrayBuffer: available" : "SharedArrayBuffer: unavailable"}
         </Badge>
+        <Badge variant="outline">{profile.parallelSuitability !== "unsupported" ? "Supported" : "Limited"}</Badge>
       </div>
 
       {currentAlgorithm !== recommendation.recommendedAlgorithm && (

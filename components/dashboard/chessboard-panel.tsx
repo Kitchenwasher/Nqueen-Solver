@@ -5,24 +5,45 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
+  Binary,
   Cpu,
   CheckCircle2,
   Gauge,
   LayoutGrid,
+  Layers3,
   PauseCircle,
   PlayCircle,
+  SlidersHorizontal,
+  Sparkles,
   RotateCcw,
+  Search,
   ShieldCheck,
   SkipForward,
   TriangleAlert
 } from "lucide-react";
 
-import { Chessboard } from "@/components/chessboard/chessboard";
+import { SolverBoard } from "@/components/solver/solver-board";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { SearchTreeVisualizer } from "@/components/dashboard/search-tree-visualizer";
+import { SearchTreePanel } from "@/components/solver/search-tree-panel";
+import { StatusPulse } from "@/components/effects/status-pulse";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ConstraintEditor } from "@/components/solver/constraint-editor";
+import { AlgorithmSelector } from "@/components/solver/algorithm-selector";
+import { StrategySelector } from "@/components/solver/strategy-selector";
+import { ParallelControls } from "@/components/solver/parallel-controls";
+import { HeatmapPanel } from "@/components/solver/heatmap-panel";
+import { SolverControls } from "@/components/solver/solver-controls";
+import { SolverPlaybackBar } from "@/components/solver/solver-playback-bar";
+import { SolverStatusBar } from "@/components/solver/solver-status-bar";
 import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { useHardwareProfile } from "@/hooks/use-hardware-profile";
 import { generateChallengeBoard, type ChallengeDifficulty, type ChallengeMode, type GeneratedChallenge } from "@/lib/challenges/generator";
@@ -34,6 +55,8 @@ import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap }
 type ChessboardPanelProps = {
   className?: string;
   focusMode?: boolean;
+  defaultAdvancedOpen?: boolean;
+  surface?: "main" | "challenge";
   onAnalyticsChange?: (
     analytics: SolverAnalytics,
     performance: AlgorithmPerformanceMap,
@@ -56,7 +79,13 @@ const STATE_LEGEND = [
 type ValidationOrigin = "live" | "manual";
 type ConstraintEditMode = "play" | "preplace" | "blocked" | "forbidden" | "erase";
 
-export function ChessboardPanel({ className, focusMode = false, onAnalyticsChange }: ChessboardPanelProps) {
+export function ChessboardPanel({
+  className,
+  focusMode = false,
+  defaultAdvancedOpen = false,
+  surface = "main",
+  onAnalyticsChange
+}: ChessboardPanelProps) {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
   const [queenCells, setQueenCells] = useState<string[]>([]);
   const [prePlacedQueenCells, setPrePlacedQueenCells] = useState<string[]>([]);
@@ -84,6 +113,7 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
     }
   });
   const { recommendation } = useHardwareProfile();
+  const isChallengeLab = surface === "challenge";
 
   const prePlacedQueens = useMemo(() => new Set(prePlacedQueenCells), [prePlacedQueenCells]);
   const blockedSet = useMemo(() => new Set(blockedCells), [blockedCells]);
@@ -359,7 +389,8 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
               : "border-border/60 bg-secondary/40 text-secondary-foreground";
 
   return (
-    <section className={className}>
+    <TooltipProvider delayDuration={120}>
+      <section id="solver-section" className={className}>
       <Card className="h-full">
         <CardHeader>
           <div className="flex items-center gap-2 text-primary">
@@ -372,34 +403,58 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
           </CardDescription>
         </CardHeader>
 
-        <CardContent className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <CardContent
+          className={cn(
+            "grid gap-4",
+            focusMode
+              ? "grid-cols-1"
+              : isChallengeLab
+                ? "xl:grid-cols-[280px_minmax(0,1fr)_280px] xl:items-start 2xl:grid-cols-[300px_minmax(0,1fr)_300px]"
+                : "xl:grid-cols-[320px_minmax(0,1fr)] xl:items-start"
+          )}
+        >
+          <div
+            className={cn(
+              "flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between",
+              !focusMode && "xl:col-start-2",
+              isChallengeLab && !focusMode && "xl:col-end-4 lg:items-start"
+            )}
+          >
             <div className="inline-flex w-full items-center gap-2 xl:w-auto">
-              <label htmlFor="board-size" className="text-sm text-muted-foreground">
-                Board Size
-              </label>
-              <select
-                id="board-size"
-                value={boardSize}
-                onChange={(event) => handleBoardSizeChange(Number(event.target.value) as BoardSize)}
-                className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {SUPPORTED_BOARD_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size} x {size}
-                  </option>
-                ))}
-              </select>
+              <span className="text-sm text-muted-foreground">Board Size</span>
+              <div className="w-[128px]">
+                <Select value={String(boardSize)} onValueChange={(value) => handleBoardSizeChange(Number(value) as BoardSize)}>
+                  <SelectTrigger id="board-size">
+                    <SelectValue placeholder="Board Size" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUPPORTED_BOARD_SIZES.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size} x {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
-            <div className="flex flex-wrap gap-2">
+            <SolverStatusBar
+              className={cn(
+                "items-center lg:justify-end",
+                isChallengeLab &&
+                  "ml-auto w-full max-w-full justify-end flex-nowrap overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
+              )}
+            >
               <Badge className={cn("gap-1.5 capitalize", statusBadgeClasses)}>
                 {validation.status === "valid" && <CheckCircle2 className="h-3.5 w-3.5" />}
                 {validation.status === "invalid" && <TriangleAlert className="h-3.5 w-3.5" />}
                 {validation.status === "in-progress" && <ShieldCheck className="h-3.5 w-3.5" />}
                 {validation.status.replace("-", " ")}
               </Badge>
-              <Badge className={cn("capitalize", solverStatusClasses)}>{solver.phase}</Badge>
+              <Badge className={cn("capitalize", solverStatusClasses, solver.phase === "solving" && "gap-1.5")}>
+                {solver.phase === "solving" && <StatusPulse tone="cyan" />}
+                {solver.phase}
+              </Badge>
               {solver.algorithm === "parallel" && (
                 <Badge variant="secondary" className="gap-1.5 border-sky-300/30 bg-sky-500/15 text-sky-100">
                   <Cpu className="h-3.5 w-3.5" />
@@ -412,12 +467,7 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
               <Badge variant="outline">{forbiddenCells.length} Forbidden</Badge>
               <Badge variant="outline">{conflictingQueens.size} Conflicts</Badge>
               <Badge variant="outline">{Math.max(attackedCells.size - queens.size, 0)} Attacked Cells</Badge>
-              {solver.exploredCell && (
-                <Badge variant="secondary">
-                  Exploring R{solver.exploredCell.row + 1} C{solver.exploredCell.col + 1}
-                </Badge>
-              )}
-            </div>
+            </SolverStatusBar>
           </div>
 
           <motion.div
@@ -427,11 +477,14 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
             transition={{ duration: 0.35 }}
             className={cn(
               "rounded-xl border border-border/60 bg-background/30 p-2 sm:p-3",
+              !focusMode && "xl:col-start-2",
+              !focusMode && isChallengeLab && "xl:col-end-3",
+              !focusMode && isChallengeLab && "xl:row-start-2",
               focusMode &&
                 "border-primary/45 bg-slate-950/40 shadow-[0_0_0_1px_rgba(86,255,229,0.25),0_0_42px_rgba(51,255,222,0.12)]"
             )}
           >
-            <Chessboard
+            <SolverBoard
               boardSize={boardSize}
               focusMode={focusMode}
               queens={queens}
@@ -454,399 +507,357 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
 
           <div
             className={cn(
-              "grid gap-3 rounded-lg border border-border/60 bg-background/35 p-3 lg:grid-cols-[1fr_auto]",
-              focusMode && "bg-slate-950/35"
+              "grid gap-3 rounded-2xl border border-border/60 bg-gradient-to-b from-background/55 to-background/35 p-3 shadow-[0_24px_60px_rgba(2,8,32,0.35)]",
+              focusMode ? "lg:grid-cols-[1fr_auto]" : "grid-cols-1",
+              !focusMode && !isChallengeLab && "xl:col-start-1 xl:row-start-1 xl:row-span-6 xl:sticky xl:top-[96px]",
+              !focusMode && isChallengeLab && "xl:col-start-1 xl:row-start-2 xl:row-span-6 xl:self-start",
+              focusMode && "bg-slate-950/45"
             )}
           >
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Algorithm</p>
-              <div className="mb-3 flex flex-wrap gap-2">
-                <Button
-                  variant={solver.algorithm === "classic" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleAlgorithmChange("classic")}
-                  disabled={solver.isBusy}
-                >
-                  Classic Backtracking
-                </Button>
-                <Button
-                  variant={solver.algorithm === "optimized" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleAlgorithmChange("optimized")}
-                  disabled={solver.isBusy}
-                >
-                  Optimized Solver
-                </Button>
-                <Button
-                  variant={solver.algorithm === "bitmask" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleAlgorithmChange("bitmask")}
-                  disabled={solver.isBusy}
-                >
-                  Bitmask Solver
-                </Button>
-                <Button
-                  variant={solver.algorithm === "parallel" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleAlgorithmChange("parallel")}
-                  disabled={solver.isBusy}
-                >
-                  Parallel Solver
-                </Button>
-                <Button variant="secondary" size="sm" onClick={handleApplyRecommendedSolver} disabled={solver.isBusy}>
-                  Apply Recommended Solver
-                </Button>
-              </div>
+            <SolverControls>
+              <Accordion
+                type="multiple"
+                defaultValue={isChallengeLab ? ["board", "algorithm", "mode", "strategy"] : ["board", "algorithm", "mode", "strategy", "visualization"]}
+                className="w-full"
+              >
+                <AccordionItem value="board">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <LayoutGrid className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">A. Board Setup</p>
+                        <p className="text-[11px] text-muted-foreground">Board dimensions and board actions</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <Select value={String(boardSize)} onValueChange={(value) => handleBoardSizeChange(Number(value) as BoardSize)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select board size" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_BOARD_SIZES.map((size) => (
+                          <SelectItem key={`setup-size-${size}`} value={String(size)}>
+                            {size} x {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" className="gap-2" onClick={handleReset}>
+                        <RotateCcw className="h-4 w-4" />
+                        Reset
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-2" onClick={handleClearBoard} disabled={solver.isBusy}>
+                        <RotateCcw className="h-4 w-4" />
+                        Clear
+                      </Button>
+                      <Button variant="outline" size="sm" className="gap-2" onClick={handleValidateBoard} disabled={solver.isBusy}>
+                        <ShieldCheck className="h-4 w-4" />
+                        Validate
+                      </Button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Mode</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.mode === "auto" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setMode("auto")}
-                >
-                  Auto-play
-                </Button>
-                <Button
-                  variant={solver.mode === "step" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setMode("step")}
-                  disabled={solver.algorithm === "parallel"}
-                >
-                  Step-by-step
-                </Button>
-              </div>
+                <AccordionItem value="algorithm">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <Binary className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">B. Algorithm</p>
+                        <p className="text-[11px] text-muted-foreground">Pick the solver engine</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <div className="mb-3 space-y-2">
+                      <AlgorithmSelector
+                        value={solver.algorithm}
+                        onValueChange={(value) => handleAlgorithmChange(value as SolverAlgorithm)}
+                        disabled={solver.isBusy}
+                        options={[
+                          { value: "classic", label: "Classic" },
+                          { value: "optimized", label: "Optimized" },
+                          { value: "bitmask", label: "Bitmask" },
+                          { value: "parallel", label: "Parallel" }
+                        ]}
+                      />
+                      <Button variant="secondary" size="sm" onClick={handleApplyRecommendedSolver} disabled={solver.isBusy}>
+                        Recommended Solver
+                      </Button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Symmetry Optimization</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.symmetryEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSymmetryEnabled(true)}
-                  disabled={solver.isBusy}
-                >
-                  Symmetry ON
-                </Button>
-                <Button
-                  variant={!solver.symmetryEnabled ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSymmetryEnabled(false)}
-                  disabled={solver.isBusy}
-                >
-                  Symmetry OFF
-                </Button>
-              </div>
+                <AccordionItem value="mode">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">C. Solve Mode</p>
+                        <p className="text-[11px] text-muted-foreground">Playback behavior for solving</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <RadioGroup
+                      value={solver.mode}
+                      onValueChange={(value) => {
+                        if (value === "auto" || value === "step") {
+                          solver.setMode(value);
+                        }
+                      }}
+                      className="space-y-2"
+                    >
+                      <label className="flex items-center gap-2 rounded-md border border-border/60 bg-background/30 px-3 py-2 text-sm">
+                        <RadioGroupItem value="auto" />
+                        Auto-play
+                      </label>
+                      <label
+                        className={cn(
+                          "flex items-center gap-2 rounded-md border border-border/60 bg-background/30 px-3 py-2 text-sm",
+                          solver.algorithm === "parallel" && "opacity-50"
+                        )}
+                      >
+                        <RadioGroupItem value="step" disabled={solver.algorithm === "parallel"} />
+                        Step-by-step
+                      </label>
+                    </RadioGroup>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Strategy</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.searchStrategy === "left-to-right" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSearchStrategy("left-to-right")}
-                  disabled={solver.isBusy}
-                >
-                  Left to Right
-                </Button>
-                <Button
-                  variant={solver.searchStrategy === "center-first" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSearchStrategy("center-first")}
-                  disabled={solver.isBusy}
-                >
-                  Center First
-                </Button>
-                <Button
-                  variant={solver.searchStrategy === "heuristic" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSearchStrategy("heuristic")}
-                  disabled={solver.isBusy}
-                >
-                  Heuristic Search
-                </Button>
-              </div>
-              {(blockedCells.length > 0 || forbiddenCells.length > 0 || prePlacedQueenCells.length > 0) && solver.algorithm !== "classic" && (
-                <p className="text-xs text-muted-foreground">
-                  Constraints are active. Solver execution will use Classic Backtracking for full compatibility.
-                </p>
-              )}
+                <AccordionItem value="symmetry">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">Symmetry</p>
+                        <p className="text-[11px] text-muted-foreground">Mirror-aware pruning toggle</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <ToggleGroup
+                      type="single"
+                      value={solver.symmetryEnabled ? "on" : "off"}
+                      onValueChange={(value) => {
+                        if (value === "on") solver.setSymmetryEnabled(true);
+                        if (value === "off") solver.setSymmetryEnabled(false);
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-wrap justify-start"
+                      disabled={solver.isBusy}
+                    >
+                      <ToggleGroupItem value="on">Symmetry ON</ToggleGroupItem>
+                      <ToggleGroupItem value="off">Symmetry OFF</ToggleGroupItem>
+                    </ToggleGroup>
+                  </AccordionContent>
+                </AccordionItem>
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Constraint Editor</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={constraintEditMode === "play" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConstraintEditMode("play")}
-                  disabled={solver.isBusy}
-                >
-                  Play Queens
-                </Button>
-                <Button
-                  variant={constraintEditMode === "preplace" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConstraintEditMode("preplace")}
-                  disabled={solver.isBusy}
-                >
-                  Pre-place Queens
-                </Button>
-                <Button
-                  variant={constraintEditMode === "blocked" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConstraintEditMode("blocked")}
-                  disabled={solver.isBusy}
-                >
-                  Block Cells
-                </Button>
-                <Button
-                  variant={constraintEditMode === "forbidden" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConstraintEditMode("forbidden")}
-                  disabled={solver.isBusy}
-                >
-                  Forbid Cells
-                </Button>
-                <Button
-                  variant={constraintEditMode === "erase" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setConstraintEditMode("erase")}
-                  disabled={solver.isBusy}
-                >
-                  Erase Cell
-                </Button>
-              </div>
+                <AccordionItem value="strategy">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <Search className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">D. Search Strategy</p>
+                        <p className="text-[11px] text-muted-foreground">Branch ordering policy</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <StrategySelector
+                      value={solver.searchStrategy}
+                      onValueChange={(value) => {
+                        if (value === "left-to-right" || value === "center-first" || value === "heuristic") {
+                          solver.setSearchStrategy(value);
+                        }
+                      }}
+                      disabled={solver.isBusy}
+                      options={[
+                        { value: "left-to-right", label: "Left to Right" },
+                        { value: "center-first", label: "Center First" },
+                        { value: "heuristic", label: "Heuristic" }
+                      ]}
+                    />
+                    {(blockedCells.length > 0 || forbiddenCells.length > 0 || prePlacedQueenCells.length > 0) && solver.algorithm !== "classic" && (
+                      <p className="text-xs text-muted-foreground">
+                        Constraints are active. Solver execution will use Classic Backtracking for full compatibility.
+                      </p>
+                    )}
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Challenge Generator</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={challengeMode === "partially-filled" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeMode("partially-filled")}
-                >
-                  Partial Fill
-                </Button>
-                <Button
-                  variant={challengeMode === "constrained" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeMode("constrained")}
-                >
-                  Constrained
-                </Button>
-                <Button
-                  variant={challengeMode === "unique-continuation" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeMode("unique-continuation")}
-                >
-                  Unique Continuation
-                </Button>
-                <Button
-                  variant={challengeMode === "limited-clue" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeMode("limited-clue")}
-                >
-                  Limited Clue
-                </Button>
-              </div>
+                    <Separator className="my-1" />
+                    <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Solving Objective</p>
+                    <ToggleGroup
+                      type="single"
+                      value={solver.solvingObjective}
+                      onValueChange={(value) => {
+                        if (value === "fastest-first" || value === "enumerate-all") {
+                          solver.setSolvingObjective(value);
+                        }
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="flex flex-wrap justify-start"
+                      disabled={solver.isBusy}
+                    >
+                      <ToggleGroupItem value="fastest-first">Fastest First</ToggleGroupItem>
+                      <ToggleGroupItem value="enumerate-all">Enumerate All</ToggleGroupItem>
+                    </ToggleGroup>
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={challengeDifficulty === "easy" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeDifficulty("easy")}
-                >
-                  Easy
-                </Button>
-                <Button
-                  variant={challengeDifficulty === "medium" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeDifficulty("medium")}
-                >
-                  Medium
-                </Button>
-                <Button
-                  variant={challengeDifficulty === "hard" ? "default" : "outline"}
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={() => setChallengeDifficulty("hard")}
-                >
-                  Hard
-                </Button>
-              </div>
+                    <ParallelControls>
+                      <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Split Depth</p>
+                      <ToggleGroup
+                        type="single"
+                        value={solver.splitDepthMode}
+                        onValueChange={(value) => {
+                          if (value === "auto" || value === "manual") {
+                            solver.setSplitDepthMode(value);
+                          }
+                        }}
+                        variant="outline"
+                        size="sm"
+                        className="flex flex-wrap justify-start"
+                        disabled={solver.isBusy || solver.algorithm !== "parallel"}
+                      >
+                        <ToggleGroupItem value="auto">Auto Split</ToggleGroupItem>
+                        <ToggleGroupItem value="manual">Manual Split</ToggleGroupItem>
+                      </ToggleGroup>
+                      <Separator className="my-1" />
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  disabled={solver.isBusy || isGeneratingChallenge}
-                  onClick={async () => {
-                    setIsGeneratingChallenge(true);
-                    setChallengeStatus("Generating challenge...");
-                    try {
-                      const challenge = await generateChallengeBoard({
-                        boardSize,
-                        mode: challengeMode,
-                        difficulty: challengeDifficulty
-                      });
-                      setActiveChallenge(challenge);
-                      setPrePlacedQueenCells(challenge.prePlacedQueens);
-                      setBlockedCells(challenge.blockedCells);
-                      setForbiddenCells(challenge.forbiddenCells);
-                      setQueenCells([]);
-                      setConstraintEditMode("play");
-                      setValidationOrigin("live");
-                      setChallengeStatus(challenge.description);
-                    } catch {
-                      setChallengeStatus("Challenge generation failed for this setup. Try again.");
-                    } finally {
-                      setIsGeneratingChallenge(false);
-                    }
-                  }}
-                >
-                  {isGeneratingChallenge ? "Generating..." : "Generate Challenge"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!activeChallenge || solver.isBusy || isGeneratingChallenge}
-                  onClick={() => {
-                    if (!activeChallenge) {
-                      return;
-                    }
-                    setQueenCells(activeChallenge.solutionKeys.filter((key) => !activeChallenge.prePlacedQueens.includes(key)));
-                    setChallengeStatus("Solution revealed.");
-                  }}
-                >
-                  Reveal Solution
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">{challengeStatus}</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          variant={solver.manualSplitDepth === 0 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => solver.setManualSplitDepth(0)}
+                          disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                        >
+                          Depth 0
+                        </Button>
+                        <Button
+                          variant={solver.manualSplitDepth === 1 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => solver.setManualSplitDepth(1)}
+                          disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                        >
+                          Depth 1
+                        </Button>
+                        <Button
+                          variant={solver.manualSplitDepth === 2 ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => solver.setManualSplitDepth(2)}
+                          disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
+                        >
+                          Depth 2
+                        </Button>
+                      </div>
+                    </ParallelControls>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="visualization">
+                  <AccordionTrigger className="py-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
+                    <div className="flex items-center gap-2 text-left normal-case">
+                      <Layers3 className="h-3.5 w-3.5 text-primary" />
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.13em]">E. Visualization Tools</p>
+                        <p className="text-[11px] text-muted-foreground">Search tree and heatmap controls</p>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-2 pt-1">
+                    <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Tree Visualizer</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={isSearchTreeVisible ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setIsSearchTreeVisible(true)}
+                          >
+                            Tree ON
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Enable recursive search tree rendering.</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant={!isSearchTreeVisible ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setIsSearchTreeVisible(false)}
+                          >
+                            Tree OFF
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Hide the tree and keep board focus.</TooltipContent>
+                      </Tooltip>
+                    </div>
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Solving Objective</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.solvingObjective === "fastest-first" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSolvingObjective("fastest-first")}
-                  disabled={solver.isBusy}
-                >
-                  Fastest First Solution
-                </Button>
-                <Button
-                  variant={solver.solvingObjective === "enumerate-all" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSolvingObjective("enumerate-all")}
-                  disabled={solver.isBusy}
-                >
-                  Enumerate All Solutions
-                </Button>
-              </div>
+                    <HeatmapPanel>
+                      <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Heatmap</p>
+                      <div className="flex flex-wrap gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant={heatmapMode === "off" ? "default" : "outline"} size="sm" onClick={() => setHeatmapMode("off")}>
+                              Off
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Disable heatmap overlays.</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={heatmapMode === "exploration" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setHeatmapMode("exploration")}
+                              disabled={!heatmapSupported}
+                            >
+                              Exploration
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Show where search explores most.</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={heatmapMode === "conflict" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setHeatmapMode("conflict")}
+                              disabled={!heatmapSupported}
+                            >
+                              Conflict
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Show conflict-heavy cells.</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant={heatmapMode === "solution-frequency" ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => setHeatmapMode("solution-frequency")}
+                              disabled={!heatmapSupported}
+                            >
+                              Solution Frequency
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Show cells used in successful solutions.</TooltipContent>
+                        </Tooltip>
+                      </div>
+                      {!heatmapSupported && (
+                        <p className="text-xs text-muted-foreground">
+                          Heatmap is disabled in Parallel Solver mode for accuracy.
+                        </p>
+                      )}
+                    </HeatmapPanel>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
 
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Split Depth</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.splitDepthMode === "auto" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSplitDepthMode("auto")}
-                  disabled={solver.isBusy || solver.algorithm !== "parallel"}
-                >
-                  Auto Split
-                </Button>
-                <Button
-                  variant={solver.splitDepthMode === "manual" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setSplitDepthMode("manual")}
-                  disabled={solver.isBusy || solver.algorithm !== "parallel"}
-                >
-                  Manual Split
-                </Button>
-              </div>
+            </SolverControls>
 
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={solver.manualSplitDepth === 0 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setManualSplitDepth(0)}
-                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
-                >
-                  Depth 0
-                </Button>
-                <Button
-                  variant={solver.manualSplitDepth === 1 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setManualSplitDepth(1)}
-                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
-                >
-                  Depth 1
-                </Button>
-                <Button
-                  variant={solver.manualSplitDepth === 2 ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => solver.setManualSplitDepth(2)}
-                  disabled={solver.isBusy || solver.algorithm !== "parallel" || solver.splitDepthMode !== "manual"}
-                >
-                  Depth 2
-                </Button>
-              </div>
-
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Tree Visualizer</p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant={isSearchTreeVisible ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsSearchTreeVisible(true)}
-                >
-                  Tree ON
-                </Button>
-                <Button
-                  variant={!isSearchTreeVisible ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setIsSearchTreeVisible(false)}
-                >
-                  Tree OFF
-                </Button>
-              </div>
-
-              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Heatmap</p>
-              <div className="flex flex-wrap gap-2">
-                <Button variant={heatmapMode === "off" ? "default" : "outline"} size="sm" onClick={() => setHeatmapMode("off")}>
-                  Off
-                </Button>
-                <Button
-                  variant={heatmapMode === "exploration" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setHeatmapMode("exploration")}
-                  disabled={!heatmapSupported}
-                >
-                  Exploration
-                </Button>
-                <Button
-                  variant={heatmapMode === "conflict" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setHeatmapMode("conflict")}
-                  disabled={!heatmapSupported}
-                >
-                  Conflict
-                </Button>
-                <Button
-                  variant={heatmapMode === "solution-frequency" ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setHeatmapMode("solution-frequency")}
-                  disabled={!heatmapSupported}
-                >
-                  Solution Frequency
-                </Button>
-              </div>
-              {!heatmapSupported && (
-                <p className="text-xs text-muted-foreground">
-                  Heatmap is disabled in Parallel Solver mode for accuracy.
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2 lg:min-w-[280px]">
+            <div className="space-y-2 rounded-xl border border-border/50 bg-background/35 p-3 lg:min-w-[280px]">
               <div className="flex items-center gap-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">
                 <Gauge className="h-3.5 w-3.5" />
                 <span>Speed ({solver.speedMs}ms)</span>
@@ -864,8 +875,194 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
             </div>
           </div>
 
-          <div className="rounded-lg border border-border/60 bg-background/35 p-2.5">
-            <div className="flex flex-wrap items-center gap-2">
+          {isChallengeLab && !focusMode && (
+            <aside id="challenges-section" className="space-y-3 xl:col-start-3 xl:row-start-2 xl:row-span-6 xl:self-start">
+              <Card className="border-border/60 bg-background/35">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center gap-2 text-primary">
+                    <Layers3 className="h-3.5 w-3.5" />
+                    <CardTitle className="text-sm">Constraint Editor</CardTitle>
+                  </div>
+                  <CardDescription className="text-xs">Set interaction mode for board edits and puzzle setup.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ConstraintEditor
+                    value={constraintEditMode}
+                    onValueChange={(value) => {
+                      if (value === "play" || value === "preplace" || value === "blocked" || value === "forbidden" || value === "erase") {
+                        setConstraintEditMode(value);
+                      }
+                    }}
+                    disabled={solver.isBusy}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/15 via-background/95 to-background/70 shadow-[0_24px_56px_rgba(3,10,34,0.48)]">
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_14%_14%,rgba(96,255,235,0.16),transparent_34%),radial-gradient(circle_at_88%_10%,rgba(86,160,255,0.14),transparent_42%),linear-gradient(135deg,rgba(96,255,235,0.04)_0%,transparent_45%,rgba(86,160,255,0.06)_100%)]" />
+                <CardHeader className="relative pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-sm tracking-tight">Puzzle Control Room</CardTitle>
+                      <CardDescription className="text-xs">Configure challenge mode, difficulty, and run puzzle actions.</CardDescription>
+                    </div>
+                    <Badge variant="outline" className="border-primary/40 bg-background/70 shadow-[0_0_0_1px_rgba(96,255,235,0.2)]">
+                      {isGeneratingChallenge ? "Generating" : "Ready"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="relative space-y-3">
+                  <div className="rounded-xl border border-border/60 bg-background/40 p-3">
+                    <p className="mb-2 text-xs uppercase tracking-[0.13em] text-muted-foreground">Challenge Mode</p>
+                    <ToggleGroup
+                      type="single"
+                      value={challengeMode}
+                      onValueChange={(value) => {
+                        if (
+                          value === "partially-filled" ||
+                          value === "constrained" ||
+                          value === "unique-continuation" ||
+                          value === "limited-clue"
+                        ) {
+                          setChallengeMode(value);
+                        }
+                      }}
+                      variant="outline"
+                      size="sm"
+                      className="grid w-full grid-cols-2 gap-2"
+                      disabled={solver.isBusy || isGeneratingChallenge}
+                    >
+                      <ToggleGroupItem value="partially-filled">Partial</ToggleGroupItem>
+                      <ToggleGroupItem value="constrained">Constrained</ToggleGroupItem>
+                      <ToggleGroupItem value="unique-continuation">Unique</ToggleGroupItem>
+                      <ToggleGroupItem value="limited-clue">Clue</ToggleGroupItem>
+                    </ToggleGroup>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Difficulty</p>
+                      <Badge variant="outline" className="border-primary/30 bg-background/50 text-[10px] capitalize">
+                        {challengeDifficulty}
+                      </Badge>
+                    </div>
+                    <RadioGroup
+                      value={challengeDifficulty}
+                      onValueChange={(value) => setChallengeDifficulty(value as ChallengeDifficulty)}
+                      className="mt-2 grid grid-cols-3 gap-2"
+                    >
+                      <label className="flex items-center justify-center gap-1.5 rounded-md border border-emerald-300/30 bg-emerald-500/10 px-2 py-1.5 text-xs shadow-[inset_0_0_0_1px_rgba(16,185,129,0.15)]">
+                        <RadioGroupItem value="easy" />
+                        <span>Easy</span>
+                      </label>
+                      <label className="flex items-center justify-center gap-1.5 rounded-md border border-sky-300/30 bg-sky-500/10 px-2 py-1.5 text-xs shadow-[inset_0_0_0_1px_rgba(14,165,233,0.14)]">
+                        <RadioGroupItem value="medium" />
+                        <span>Medium</span>
+                      </label>
+                      <label className="flex items-center justify-center gap-1.5 rounded-md border border-violet-300/30 bg-violet-500/10 px-2 py-1.5 text-xs shadow-[inset_0_0_0_1px_rgba(139,92,246,0.14)]">
+                        <RadioGroupItem value="hard" />
+                        <span>Hard</span>
+                      </label>
+                    </RadioGroup>
+                  </div>
+
+                  <div className="rounded-xl border border-primary/30 bg-background/35 p-3">
+                    <p className="text-xs font-semibold text-primary">Board Target: {boardSize} x {boardSize}</p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant="secondary">Mode: {challengeMode.replace("-", " ")}</Badge>
+                      <Badge variant="outline" className="border-primary/30 bg-background/50">
+                        Difficulty: {challengeDifficulty}
+                      </Badge>
+                      <Badge variant="outline">Edit: {constraintEditMode}</Badge>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/60 bg-background/35 p-3">
+                    <div className="mb-2 flex flex-wrap gap-1.5">
+                      <Badge variant="outline">Pre-placed {prePlacedQueenCells.length}</Badge>
+                      <Badge variant="outline">Blocked {blockedCells.length}</Badge>
+                      <Badge variant="outline">Forbidden {forbiddenCells.length}</Badge>
+                    </div>
+                    <Accordion
+                      type="single"
+                      collapsible
+                      defaultValue={defaultAdvancedOpen ? "challenge-details" : undefined}
+                      className="w-full"
+                    >
+                      <AccordionItem value="challenge-details" className="border-border/60">
+                        <AccordionTrigger className="py-1.5 text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                          Challenge Details
+                        </AccordionTrigger>
+                        <AccordionContent className="pt-1 text-xs text-muted-foreground">
+                          {activeChallenge ? activeChallenge.description : "Generate a challenge to view puzzle metadata."}
+                        </AccordionContent>
+                      </AccordionItem>
+                    </Accordion>
+                    <div className="mt-3 grid grid-cols-1 gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            size="sm"
+                            className="w-full justify-center gap-2 whitespace-normal px-3 text-sm border border-primary/40 bg-gradient-to-r from-cyan-500/90 via-sky-500/85 to-primary text-primary-foreground shadow-[0_0_0_1px_rgba(96,255,235,0.3),0_0_24px_rgba(96,255,235,0.18)] hover:from-cyan-400 hover:via-sky-400 hover:to-primary"
+                            disabled={solver.isBusy || isGeneratingChallenge}
+                            onClick={async () => {
+                              setIsGeneratingChallenge(true);
+                              setChallengeStatus("Generating challenge...");
+                              try {
+                                const challenge = await generateChallengeBoard({
+                                  boardSize,
+                                  mode: challengeMode,
+                                  difficulty: challengeDifficulty
+                                });
+                                setActiveChallenge(challenge);
+                                setPrePlacedQueenCells(challenge.prePlacedQueens);
+                                setBlockedCells(challenge.blockedCells);
+                                setForbiddenCells(challenge.forbiddenCells);
+                                setQueenCells([]);
+                                setConstraintEditMode("play");
+                                setValidationOrigin("live");
+                                setChallengeStatus(challenge.description);
+                              } catch {
+                                setChallengeStatus("Challenge generation failed for this setup. Try again.");
+                              } finally {
+                                setIsGeneratingChallenge(false);
+                              }
+                            }}
+                          >
+                            {isGeneratingChallenge ? "Generating..." : "Generate Challenge"}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Create a fresh puzzle with the selected mode and difficulty.</TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-center gap-2 whitespace-normal px-3 text-sm border-primary/25 bg-background/55 shadow-[inset_0_0_0_1px_rgba(96,255,235,0.08)]"
+                            disabled={!activeChallenge || solver.isBusy || isGeneratingChallenge}
+                            onClick={() => {
+                              if (!activeChallenge) {
+                                return;
+                              }
+                              setQueenCells(activeChallenge.solutionKeys.filter((key) => !activeChallenge.prePlacedQueens.includes(key)));
+                              setChallengeStatus("Solution revealed.");
+                            }}
+                          >
+                            Reveal Solution
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Fill remaining queen placements from the active challenge solution.</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">{challengeStatus}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </aside>
+          )}
+
+          <SolverPlaybackBar className={cn(!focusMode && "xl:col-start-2", !focusMode && isChallengeLab && "xl:col-end-3")}>
+            <div className="space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
               <Button className="gap-2" size="sm" onClick={handleFindFirstSolution} disabled={solver.isBusy}>
                 <PlayCircle className="h-4 w-4" />
                 Find First Solution
@@ -908,6 +1105,9 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
                 <SkipForward className="h-4 w-4" />
                 Next Step
               </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" className="gap-2" onClick={handleReset}>
                 <RotateCcw className="h-4 w-4" />
                 Reset
@@ -944,10 +1144,11 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
                 <ArrowRight className="h-4 w-4" />
                 Next Solution
               </Button>
+              </div>
             </div>
-          </div>
+          </SolverPlaybackBar>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={cn("flex flex-wrap items-center gap-2", !focusMode && "xl:col-start-2", !focusMode && isChallengeLab && "xl:col-end-3")}>
             <Badge variant="secondary">
               Solution {solver.totalStoredSolutions === 0 ? 0 : solver.currentSolutionIndex + 1} / {solver.totalStoredSolutions}
             </Badge>
@@ -959,61 +1160,76 @@ export function ChessboardPanel({ className, focusMode = false, onAnalyticsChang
           <motion.section
             layout
             transition={{ duration: 0.28, ease: "easeOut" }}
-            className={cn("rounded-xl border border-border/70 bg-card/60 p-3", focusMode && "bg-slate-950/45")}
+            className={cn(
+              "rounded-xl border border-border/70 bg-card/60 p-3",
+              !focusMode && "xl:col-start-2",
+              !focusMode && isChallengeLab && "xl:col-end-3",
+              focusMode && "bg-slate-950/45"
+            )}
           >
-            <p className="mb-2 text-sm font-medium">Live Solver Log</p>
-            <ScrollArea className="h-[230px] rounded-lg border border-border/60 bg-background/30 p-2.5 sm:h-[280px] md:h-[320px]">
-              <div className="space-y-2">
-                {solver.logs.length === 0 && (
-                  <p className="text-xs text-muted-foreground">Run the solver to stream step-by-step log events.</p>
+            <Tabs defaultValue="log" className="w-full">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="log">Live Log</TabsTrigger>
+                <TabsTrigger value="tree">Search Tree</TabsTrigger>
+                <TabsTrigger value="heatmap">Heatmap</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="log" className="mt-3">
+                <ScrollArea className="h-[230px] rounded-lg border border-border/60 bg-background/30 p-2.5 sm:h-[280px] md:h-[320px]">
+                  <div className="space-y-2">
+                    {solver.logs.length === 0 && (
+                      <p className="text-xs text-muted-foreground">Run the solver to stream step-by-step log events.</p>
+                    )}
+                    {solver.logs.map((entry) => (
+                      <motion.article
+                        key={entry.id}
+                        layout
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="rounded-md border border-border/50 bg-card/80 p-2.5"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-semibold text-primary">Step {entry.step}</p>
+                          {entry.row !== null && entry.col !== null && (
+                            <span className="mono text-[10px] text-muted-foreground">
+                              R{entry.row + 1} C{entry.col + 1}
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-xs text-foreground">{entry.message}</p>
+                      </motion.article>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="tree" className="mt-3">
+                <SearchTreePanel visible={isSearchTreeVisible} logs={solver.logs} phase={solver.phase} boardSize={boardSize} />
+              </TabsContent>
+
+              <TabsContent value="heatmap" className="mt-3 space-y-3">
+                <p className="text-xs text-muted-foreground">
+                  {validation.message}
+                  {validationOrigin === "manual" ? " (Validated)" : ""}
+                </p>
+                {!heatmapSupported && (
+                  <p className="text-xs text-muted-foreground">Heatmap is disabled in Parallel Solver mode for accuracy.</p>
                 )}
-                {solver.logs.map((entry) => (
-                  <motion.article
-                    key={entry.id}
-                    layout
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="rounded-md border border-border/50 bg-card/80 p-2.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs font-semibold text-primary">Step {entry.step}</p>
-                      {entry.row !== null && entry.col !== null && (
-                        <span className="mono text-[10px] text-muted-foreground">
-                          R{entry.row + 1} C{entry.col + 1}
-                        </span>
-                      )}
+                <div className="flex flex-wrap gap-2.5 rounded-lg border border-border/60 bg-background/35 p-3">
+                  {STATE_LEGEND.map((item) => (
+                    <div key={item.label} className="inline-flex items-center gap-2">
+                      <span className={cn("h-3.5 w-3.5 rounded-[4px] border", item.swatch)} />
+                      <span className="text-xs text-muted-foreground">{item.label}</span>
                     </div>
-                    <p className="mt-1 text-xs text-foreground">{entry.message}</p>
-                  </motion.article>
-                ))}
-              </div>
-            </ScrollArea>
-          </motion.section>
-
-          {!focusMode && isSearchTreeVisible && <SearchTreeVisualizer logs={solver.logs} phase={solver.phase} boardSize={boardSize} />}
-
-          {!focusMode && (
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">
-                {validation.message}
-                {validationOrigin === "manual" ? " (Validated)" : ""}
-              </span>
-            </div>
-          )}
-
-          {!focusMode && (
-            <div className="flex flex-wrap gap-2.5 rounded-lg border border-border/60 bg-background/35 p-3">
-              {STATE_LEGEND.map((item) => (
-                <div key={item.label} className="inline-flex items-center gap-2">
-                  <span className={cn("h-3.5 w-3.5 rounded-[4px] border", item.swatch)} />
-                  <span className="text-xs text-muted-foreground">{item.label}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              </TabsContent>
+            </Tabs>
+          </motion.section>
         </CardContent>
       </Card>
     </section>
+    </TooltipProvider>
   );
 }

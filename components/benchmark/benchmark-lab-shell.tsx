@@ -1,14 +1,31 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { BarChart3, Flame, FlaskConical, PlayCircle, Square } from "lucide-react";
+import { BarChart3, Flame, FlaskConical, PlayCircle, Sparkles, Square } from "lucide-react";
+import { GlowBorder } from "@/components/effects/glow-border";
+import { GradientOverlay } from "@/components/effects/gradient-overlay";
+import { SpotlightBackground } from "@/components/effects/spotlight-background";
+import { StatusPulse } from "@/components/effects/status-pulse";
 
 import { TopNavbar } from "@/components/dashboard/top-navbar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { runBenchmark } from "@/lib/benchmark/run-benchmark";
+import { BenchmarkSummaryCard, BenchmarkSummaryCards } from "@/components/benchmark/panels/benchmark-summary-cards";
+import { BenchmarkConfigPanel } from "@/components/benchmark/panels/benchmark-config-panel";
+import { BenchmarkResultsTable } from "@/components/benchmark/panels/benchmark-results-table";
+import { StressTestPanel } from "@/components/benchmark/panels/stress-test-panel";
 import type { BenchmarkCaseResult, BenchmarkMode } from "@/lib/benchmark/types";
 import { runStressTest } from "@/lib/stress/run-stress-test";
 import type { StressSolveTarget, StressTestResult } from "@/lib/stress/types";
@@ -53,6 +70,7 @@ function sortResults(results: BenchmarkCaseResult[]) {
 }
 
 export function BenchmarkLabShell() {
+  const [activeTab, setActiveTab] = useState<"benchmark" | "stress">("benchmark");
   const [selectedBoardSizes, setSelectedBoardSizes] = useState<BoardSize[]>([8, 10, 12]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState<SolverAlgorithm[]>([...ALGORITHMS]);
   const [mode, setMode] = useState<BenchmarkMode>("first");
@@ -65,6 +83,7 @@ export function BenchmarkLabShell() {
   const [isRunning, setIsRunning] = useState(false);
   const [progressText, setProgressText] = useState<string>("");
   const [statusText, setStatusText] = useState<string>("Ready");
+  const [benchmarkProgressValue, setBenchmarkProgressValue] = useState(0);
   const stopRef = useRef(false);
   const [stressAlgorithm, setStressAlgorithm] = useState<SolverAlgorithm>("parallel");
   const [stressMinBoard, setStressMinBoard] = useState<BoardSize>(8);
@@ -77,6 +96,7 @@ export function BenchmarkLabShell() {
   const [isStressRunning, setIsStressRunning] = useState(false);
   const [stressStatusText, setStressStatusText] = useState("Ready");
   const [stressProgressText, setStressProgressText] = useState("");
+  const [stressProgressValue, setStressProgressValue] = useState(0);
   const stressStopRef = useRef(false);
 
   const toggleBoardSize = (size: BoardSize) => {
@@ -113,6 +133,7 @@ export function BenchmarkLabShell() {
     setResults([]);
     setStatusText("Benchmark running...");
     setProgressText("");
+    setBenchmarkProgressValue(0);
     setIsRunning(true);
     stopRef.current = false;
 
@@ -133,8 +154,9 @@ export function BenchmarkLabShell() {
           onProgress: (progress) => {
             const label = ALGORITHM_LABELS[progress.currentAlgorithm];
             setProgressText(
-              `${progress.completedRuns}/${progress.totalRuns} • N=${progress.currentBoardSize} • ${label} • Run ${progress.currentRun}`
+              `${progress.completedRuns}/${progress.totalRuns} | N=${progress.currentBoardSize} | ${label} | Run ${progress.currentRun}`
             );
+            setBenchmarkProgressValue(Math.min(100, (progress.completedRuns / progress.totalRuns) * 100));
           }
         }
       );
@@ -142,6 +164,7 @@ export function BenchmarkLabShell() {
       const sorted = sortResults(benchmarkResults);
       setResults(sorted);
       setStatusText(`Benchmark complete. ${sorted.length} cases measured.`);
+      setBenchmarkProgressValue(100);
     } catch (error) {
       if (error instanceof Error && error.name === "BenchmarkStopped") {
         setStatusText("Benchmark stopped.");
@@ -190,27 +213,69 @@ export function BenchmarkLabShell() {
 
   return (
     <div className="relative min-h-screen">
+      <SpotlightBackground className="opacity-75" />
+      <GradientOverlay className="opacity-90" />
       <div className="pointer-events-none absolute inset-0 bg-grid-noise [background-size:22px_22px] opacity-20" />
-      <TopNavbar />
+      <TopNavbar title="Benchmark Lab" subtitle="Algorithm benchmarking and stress testing workspace." />
 
       <main className="relative z-10 mx-auto flex w-full max-w-[1800px] flex-col gap-4 px-4 py-4 sm:px-6 lg:gap-5 lg:px-8 lg:py-6">
-        <motion.section
+        <TooltipProvider>
+          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "benchmark" | "stress")} className="space-y-4">
+            <Card className="relative overflow-hidden border-primary/30 bg-gradient-to-br from-primary/15 via-background/95 to-background/60 shadow-[0_18px_42px_rgba(3,9,30,0.45)]">
+              <GradientOverlay className="opacity-70" />
+              <CardContent className="relative flex flex-wrap items-center justify-between gap-3 p-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold tracking-tight">Performance Testing Workspace</p>
+                  <p className="text-xs text-muted-foreground">Switch between benchmark sweeps and stress diagnostics.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="hidden items-center gap-1.5 lg:flex">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/">Open Solver</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/challenges">Open Challenge Lab</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/insights">Open Insights</Link>
+                    </Button>
+                  </div>
+                  <TabsList className="grid w-[300px] grid-cols-2 border-primary/20 bg-background/55 backdrop-blur-sm">
+                    <TabsTrigger value="benchmark" className="font-medium">
+                      Benchmark
+                    </TabsTrigger>
+                    <TabsTrigger value="stress" className="font-medium">
+                      Stress Test
+                    </TabsTrigger>
+                  </TabsList>
+                  <Badge variant="outline" className="gap-2 border-primary/35 bg-background/55 backdrop-blur-sm">
+                    <StatusPulse tone={isRunning || isStressRunning ? "cyan" : "amber"} />
+                    {isRunning || isStressRunning ? "Running" : "Idle"}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+
+            <TabsContent value="benchmark" className="mt-0 space-y-4">
+              <motion.section
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.45, ease: "easeOut" }}
         >
-          <Card>
-            <CardHeader>
+          <BenchmarkConfigPanel>
+            <div className="space-y-4">
               <div className="flex items-center gap-2 text-primary">
                 <FlaskConical className="h-4 w-4" />
                 <span className="mono text-xs uppercase tracking-[0.16em]">Benchmark Lab</span>
               </div>
-              <CardTitle>Algorithm Benchmark Platform</CardTitle>
-              <CardDescription>
+              <p className="text-xs text-muted-foreground">
                 Compare fastest-first objective vs all-solutions objective across classic, optimized, bitmask, and parallel solvers.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </p>
+              <GlowBorder intensity="low" className="rounded-xl bg-background/25 p-0.5">
+                <div className="rounded-[11px] border border-border/50 bg-background/30 p-4">
+                  <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">Configuration Matrix</p>
+                </div>
+              </GlowBorder>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Board Sizes</p>
@@ -248,37 +313,42 @@ export function BenchmarkLabShell() {
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Benchmark Mode</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={mode === "first" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setMode("first")}
-                      disabled={isRunning || isStressRunning}
-                    >
-                      First Solution
-                    </Button>
-                    <Button
-                      variant={mode === "all" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setMode("all")}
-                      disabled={isRunning || isStressRunning}
-                    >
-                      All Solutions
-                    </Button>
-                  </div>
+                  <ToggleGroup
+                    type="single"
+                    value={mode}
+                    onValueChange={(value) => {
+                      if (value === "first" || value === "all") {
+                        setMode(value);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    disabled={isRunning || isStressRunning}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="first">First Solution</ToggleGroupItem>
+                    <ToggleGroupItem value="all">All Solutions</ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Number of Runs</p>
-                  <input
-                    type="number"
-                    min={1}
-                    max={20}
-                    value={runs}
+                  <Select
+                    value={String(runs)}
+                    onValueChange={(value) => setRuns(Math.max(1, Math.min(20, Number(value) || 1)))}
                     disabled={isRunning || isStressRunning}
-                    onChange={(event) => setRuns(Number(event.target.value) || 1)}
-                    className="h-10 w-28 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
+                  >
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 5, 8, 10, 15, 20].map((count) => (
+                        <SelectItem key={count} value={String(count)}>
+                          {count} run{count === 1 ? "" : "s"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -354,7 +424,7 @@ export function BenchmarkLabShell() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/30 p-2.5">
                 <Button className="gap-2" onClick={handleStart} disabled={isRunning || isStressRunning}>
                   <PlayCircle className="h-4 w-4" />
                   Run Benchmark
@@ -363,30 +433,43 @@ export function BenchmarkLabShell() {
                   <Square className="h-4 w-4" />
                   Stop
                 </Button>
-                <Badge variant="outline">{statusText}</Badge>
-                {progressText && <Badge variant="secondary">{progressText}</Badge>}
+                <Badge variant="outline" className="border-primary/35 bg-background/60">
+                  {statusText}
+                </Badge>
+                {progressText && (
+                  <Badge variant="secondary" className="bg-secondary/70">
+                    {progressText}
+                  </Badge>
+                )}
               </div>
-            </CardContent>
-          </Card>
-        </motion.section>
 
-        <motion.section
+              <div className="rounded-xl border border-border/60 bg-background/35 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Run State</span>
+                  <span>{isRunning ? `${benchmarkProgressValue.toFixed(0)}%` : "Ready"}</span>
+                </div>
+                <Progress value={isRunning ? benchmarkProgressValue : 0} indicatorClassName="bg-gradient-to-r from-cyan-400 via-primary to-blue-500" />
+              </div>
+            </div>
+          </BenchmarkConfigPanel>
+              </motion.section>
+            </TabsContent>
+
+            <TabsContent value="stress" className="mt-0 space-y-4">
+              <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.06 }}
         >
-          <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-background">
-            <CardHeader>
+          <StressTestPanel>
+            <div className="space-y-4">
               <div className="flex items-center gap-2 text-primary">
                 <Flame className="h-4 w-4" />
                 <span className="mono text-xs uppercase tracking-[0.16em]">Stress Test Mode</span>
               </div>
-              <CardTitle>Push The System</CardTitle>
-              <CardDescription>
+              <p className="text-xs text-muted-foreground">
                 Sweep board sizes under a time budget to find your maximum solved N and peak runtime characteristics.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
+              </p>
               <div className="grid gap-4 lg:grid-cols-2">
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Algorithm</p>
@@ -407,105 +490,135 @@ export function BenchmarkLabShell() {
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Solve Target</p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={stressSolveTarget === "first" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setStressSolveTarget("first")}
-                      disabled={isStressRunning || isRunning}
-                    >
-                      First Solution
-                    </Button>
-                    <Button
-                      variant={stressSolveTarget === "all" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setStressSolveTarget("all")}
-                      disabled={isStressRunning || isRunning}
-                    >
-                      All Solutions
-                    </Button>
-                  </div>
+                  <ToggleGroup
+                    type="single"
+                    value={stressSolveTarget}
+                    onValueChange={(value) => {
+                      if (value === "first" || value === "all") {
+                        setStressSolveTarget(value);
+                      }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    disabled={isStressRunning || isRunning}
+                    className="justify-start"
+                  >
+                    <ToggleGroupItem value="first">First Solution</ToggleGroupItem>
+                    <ToggleGroupItem value="all">All Solutions</ToggleGroupItem>
+                  </ToggleGroup>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Board Size Range</p>
                   <div className="flex items-center gap-2">
-                    <select
-                      value={stressMinBoard}
-                      onChange={(event) => setStressMinBoard(Number(event.target.value) as BoardSize)}
+                    <Select
+                      value={String(stressMinBoard)}
+                      onValueChange={(value) => setStressMinBoard(Number(value) as BoardSize)}
                       disabled={isStressRunning || isRunning}
-                      className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {SUPPORTED_BOARD_SIZES.map((size) => (
-                        <option key={`stress-min-${size}`} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_BOARD_SIZES.map((size) => (
+                          <SelectItem key={`stress-min-${size}`} value={String(size)}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <span className="text-sm text-muted-foreground">to</span>
-                    <select
-                      value={stressMaxBoard}
-                      onChange={(event) => setStressMaxBoard(Number(event.target.value) as BoardSize)}
+                    <Select
+                      value={String(stressMaxBoard)}
+                      onValueChange={(value) => setStressMaxBoard(Number(value) as BoardSize)}
                       disabled={isStressRunning || isRunning}
-                      className="h-10 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
-                      {SUPPORTED_BOARD_SIZES.map((size) => (
-                        <option key={`stress-max-${size}`} value={size}>
-                          {size}
-                        </option>
-                      ))}
-                    </select>
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_BOARD_SIZES.map((size) => (
+                          <SelectItem key={`stress-max-${size}`} value={String(size)}>
+                            {size}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 
                 <div className="space-y-2">
                   <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Time Limit (seconds)</p>
-                  <input
-                    type="number"
-                    min={2}
-                    max={300}
-                    value={stressTimeLimitSeconds}
+                  <Select
+                    value={String(stressTimeLimitSeconds)}
+                    onValueChange={(value) => setStressTimeLimitSeconds(Number(value) || 2)}
                     disabled={isStressRunning || isRunning}
-                    onChange={(event) => setStressTimeLimitSeconds(Number(event.target.value) || 2)}
-                    className="h-10 w-28 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  />
+                  >
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 300].map((seconds) => (
+                        <SelectItem key={seconds} value={String(seconds)}>
+                          {seconds}s
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Workers</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Workers</p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge variant="outline" className="h-5 cursor-help px-1.5 text-[10px]">
+                          i
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>Manual worker count is used only when Parallel Solver is selected.</TooltipContent>
+                    </Tooltip>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant={stressWorkerMode === "auto" ? "default" : "outline"}
+                    <ToggleGroup
+                      type="single"
+                      value={stressWorkerMode}
+                      onValueChange={(value) => {
+                        if (value === "auto" || value === "manual") {
+                          setStressWorkerMode(value);
+                        }
+                      }}
+                      variant="outline"
                       size="sm"
-                      onClick={() => setStressWorkerMode("auto")}
                       disabled={isStressRunning || isRunning || stressAlgorithm !== "parallel"}
+                      className="justify-start"
                     >
-                      Auto
-                    </Button>
-                    <Button
-                      variant={stressWorkerMode === "manual" ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setStressWorkerMode("manual")}
-                      disabled={isStressRunning || isRunning || stressAlgorithm !== "parallel"}
-                    >
-                      Manual
-                    </Button>
-                    <input
-                      type="number"
-                      min={1}
-                      max={32}
-                      value={stressWorkerCount}
+                      <ToggleGroupItem value="auto">Auto</ToggleGroupItem>
+                      <ToggleGroupItem value="manual">Manual</ToggleGroupItem>
+                    </ToggleGroup>
+                    <Select
+                      value={String(stressWorkerCount)}
+                      onValueChange={(value) => setStressWorkerCount(Number(value) || 1)}
                       disabled={
                         isStressRunning || isRunning || stressAlgorithm !== "parallel" || stressWorkerMode !== "manual"
                       }
-                      onChange={(event) => setStressWorkerCount(Number(event.target.value) || 1)}
-                      className="h-9 w-24 rounded-md border border-input bg-background/60 px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
+                    >
+                      <SelectTrigger className="w-28">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Array.from({ length: 16 }, (_, index) => index + 1).map((workers) => (
+                          <SelectItem key={workers} value={String(workers)}>
+                            {workers}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border/60 bg-background/30 p-2.5">
                 <Button
                   className="gap-2"
                   disabled={isStressRunning || isRunning}
@@ -519,6 +632,7 @@ export function BenchmarkLabShell() {
                     setStressResult(null);
                     setStressStatusText("Stress test running...");
                     setStressProgressText("");
+                    setStressProgressValue(0);
                     setIsStressRunning(true);
                     stressStopRef.current = false;
 
@@ -542,11 +656,17 @@ export function BenchmarkLabShell() {
                             setStressProgressText(
                               `N=${progress.currentBoardSize} | elapsed ${formatMs(progress.elapsedMs)} | nodes ${formatInteger(progress.totalNodesExplored)}`
                             );
+                            const minBoard = Math.min(min, max);
+                            const maxBoard = Math.max(min, max);
+                            const span = Math.max(1, maxBoard - minBoard + 1);
+                            const completed = progress.currentBoardSize - minBoard + 1;
+                            setStressProgressValue(Math.min(100, Math.max(0, (completed / span) * 100)));
                           }
                         }
                       );
                       setStressResult(result);
                       setStressStatusText(result.reachedTimeLimit ? "Time limit reached." : "Stress test completed.");
+                      setStressProgressValue(100);
                     } catch (error) {
                       if (error instanceof Error && error.name === "StressTestStopped") {
                         setStressStatusText("Stress test stopped.");
@@ -575,8 +695,25 @@ export function BenchmarkLabShell() {
                   Stop
                 </Button>
 
-                <Badge variant="outline">{stressStatusText}</Badge>
-                {stressProgressText && <Badge variant="secondary">{stressProgressText}</Badge>}
+                <Badge variant="outline" className="border-primary/35 bg-background/60">
+                  {stressStatusText}
+                </Badge>
+                {stressProgressText && (
+                  <Badge variant="secondary" className="bg-secondary/70">
+                    {stressProgressText}
+                  </Badge>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-border/60 bg-background/35 p-3">
+                <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Live Test State</span>
+                  <span>{isStressRunning ? `${stressProgressValue.toFixed(0)}%` : "Ready"}</span>
+                </div>
+                <Progress
+                  value={isStressRunning ? stressProgressValue : 0}
+                  indicatorClassName="bg-gradient-to-r from-emerald-400 via-cyan-400 to-primary"
+                />
               </div>
 
               {stressResult && (
@@ -606,6 +743,10 @@ export function BenchmarkLabShell() {
                       <p className="text-xs text-muted-foreground">Speed (Nodes/s)</p>
                       <p className="text-lg font-semibold">{formatInteger(stressResult.averageNodesPerSecond)}</p>
                     </article>
+                    <article className="rounded-lg border border-border/60 bg-background/35 p-3">
+                      <p className="text-xs text-muted-foreground">Estimated Speedup</p>
+                      <p className="text-lg font-semibold">{`${Math.max(1, stressResult.averageNodesPerSecond / 1000).toFixed(2)}x`}</p>
+                    </article>
                   </div>
 
                   <div className="grid gap-2 sm:grid-cols-2">
@@ -621,116 +762,130 @@ export function BenchmarkLabShell() {
                     </article>
                   </div>
 
-                  <div className="overflow-x-auto rounded-lg border border-border/60">
-                    <table className="w-full min-w-[850px] text-left text-sm">
-                      <thead className="border-b border-border/60 bg-background/40">
-                        <tr>
-                          <th className="px-3 py-2">N</th>
-                          <th className="px-3 py-2">Solved</th>
-                          <th className="px-3 py-2">Timed Out</th>
-                          <th className="px-3 py-2">Elapsed</th>
-                          <th className="px-3 py-2">Nodes</th>
-                          <th className="px-3 py-2">Backtracks</th>
-                          <th className="px-3 py-2">Branches Pruned</th>
-                          <th className="px-3 py-2">Solutions</th>
-                          <th className="px-3 py-2">Workers Used</th>
-                          <th className="px-3 py-2">Peak Active Workers</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  <ScrollArea className="h-[280px] rounded-lg border border-border/60">
+                    <Table className="min-w-[900px]">
+                      <TableHeader className="bg-background/40">
+                        <TableRow>
+                          <TableHead>N</TableHead>
+                          <TableHead>Solved</TableHead>
+                          <TableHead>Timed Out</TableHead>
+                          <TableHead>Elapsed</TableHead>
+                          <TableHead>Nodes</TableHead>
+                          <TableHead>Backtracks</TableHead>
+                          <TableHead>Branches Pruned</TableHead>
+                          <TableHead>Solutions</TableHead>
+                          <TableHead>Workers Used</TableHead>
+                          <TableHead>Peak Active Workers</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {stressResult.steps.map((step) => (
-                          <tr key={`stress-step-${step.boardSize}`} className="border-b border-border/40">
-                            <td className="px-3 py-2">{step.boardSize}</td>
-                            <td className="px-3 py-2">{step.solved ? "Yes" : "No"}</td>
-                            <td className="px-3 py-2">{step.timedOut ? "Yes" : "No"}</td>
-                            <td className="px-3 py-2">{formatMs(step.elapsedMs)}</td>
-                            <td className="px-3 py-2">{formatInteger(step.recursiveCalls)}</td>
-                            <td className="px-3 py-2">{formatInteger(step.backtracks)}</td>
-                            <td className="px-3 py-2">{formatInteger(step.branchesPruned)}</td>
-                            <td className="px-3 py-2">{formatInteger(step.solutionsFound)}</td>
-                            <td className="px-3 py-2">{step.workersUsed || "-"}</td>
-                            <td className="px-3 py-2">{step.peakActiveWorkers || "-"}</td>
-                          </tr>
+                          <TableRow key={`stress-step-${step.boardSize}`}>
+                            <TableCell>{step.boardSize}</TableCell>
+                            <TableCell>{step.solved ? "Yes" : "No"}</TableCell>
+                            <TableCell>{step.timedOut ? "Yes" : "No"}</TableCell>
+                            <TableCell>{formatMs(step.elapsedMs)}</TableCell>
+                            <TableCell>{formatInteger(step.recursiveCalls)}</TableCell>
+                            <TableCell>{formatInteger(step.backtracks)}</TableCell>
+                            <TableCell>{formatInteger(step.branchesPruned)}</TableCell>
+                            <TableCell>{formatInteger(step.solutionsFound)}</TableCell>
+                            <TableCell>{step.workersUsed || "-"}</TableCell>
+                            <TableCell>{step.peakActiveWorkers || "-"}</TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        </motion.section>
+            </div>
+          </StressTestPanel>
+              </motion.section>
+            </TabsContent>
 
-        <motion.section
+            <TabsContent value="benchmark" className="mt-0 space-y-4">
+              <motion.section
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.08 }}
         >
-          <Card>
-            <CardHeader>
+          <BenchmarkResultsTable>
+            <div className="space-y-4">
               <div className="flex items-center gap-2 text-primary">
                 <BarChart3 className="h-4 w-4" />
                 <span className="mono text-xs uppercase tracking-[0.16em]">Results</span>
               </div>
-              <CardTitle>Benchmark Comparison</CardTitle>
-              <CardDescription>Solve time, recursive calls, backtracks, pruning, speedup ratio, and solutions found.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {results.length === 0 && <p className="text-sm text-muted-foreground">No benchmark results yet. Configure options and run.</p>}
+              <p className="text-xs text-muted-foreground">Solve time, recursive calls, backtracks, pruning, speedup ratio, and solutions found.</p>
+              {results.length === 0 && (
+                <div className="glass-elevated rounded-xl p-4">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <p className="text-sm font-medium">No benchmark results yet</p>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">Configure test matrix and start a run to populate analytics.</p>
+                  {isRunning && (
+                    <div className="mt-3 grid gap-2">
+                      <Skeleton className="h-9 w-full" />
+                      <Skeleton className="h-9 w-[85%]" />
+                      <Skeleton className="h-9 w-[70%]" />
+                    </div>
+                  )}
+                </div>
+              )}
 
               {results.length > 0 && (
                 <>
-                  <div className="overflow-x-auto rounded-lg border border-border/60">
-                    <table className="w-full min-w-[1100px] text-left text-sm">
-                      <thead className="border-b border-border/60 bg-background/40">
-                        <tr>
-                          <th className="px-3 py-2">Algorithm</th>
-                          <th className="px-3 py-2">Board</th>
-                          <th className="px-3 py-2">Mode</th>
-                          <th className="px-3 py-2">Avg Time</th>
-                          <th className="px-3 py-2">Best Time</th>
-                          <th className="px-3 py-2">Recursive Calls</th>
-                          <th className="px-3 py-2">Backtracks</th>
-                          <th className="px-3 py-2">Branches Pruned</th>
-                          <th className="px-3 py-2">Solutions Found</th>
-                          <th className="px-3 py-2">Speedup vs Classic</th>
-                        </tr>
-                      </thead>
-                      <tbody>
+                  <ScrollArea className="h-[320px] rounded-xl border border-border/60 bg-background/25">
+                    <Table className="min-w-[1100px]">
+                      <TableHeader className="bg-background/40">
+                        <TableRow>
+                          <TableHead>Algorithm</TableHead>
+                          <TableHead>Board</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>Avg Time</TableHead>
+                          <TableHead>Best Time</TableHead>
+                          <TableHead>Recursive Calls</TableHead>
+                          <TableHead>Backtracks</TableHead>
+                          <TableHead>Branches Pruned</TableHead>
+                          <TableHead>Solutions Found</TableHead>
+                          <TableHead>Speedup vs Classic</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {results.map((result) => {
                           const classic = baselineByBoardSize.get(result.boardSize);
                           const speedup = classic && result.averageElapsedMs > 0 ? classic / result.averageElapsedMs : null;
 
                           return (
-                            <tr key={`${result.algorithm}-${result.boardSize}`} className="border-b border-border/40">
-                              <td className="px-3 py-2 font-medium">{ALGORITHM_LABELS[result.algorithm]}</td>
-                              <td className="px-3 py-2">
+                            <TableRow key={`${result.algorithm}-${result.boardSize}`}>
+                              <TableCell className="font-medium">{ALGORITHM_LABELS[result.algorithm]}</TableCell>
+                              <TableCell>
                                 {result.boardSize} x {result.boardSize}
-                              </td>
-                              <td className="px-3 py-2 capitalize">{result.mode}</td>
-                              <td className="px-3 py-2">{formatMs(result.averageElapsedMs)}</td>
-                              <td className="px-3 py-2">{formatMs(result.bestElapsedMs)}</td>
-                              <td className="px-3 py-2">{formatInteger(result.averageRecursiveCalls)}</td>
-                              <td className="px-3 py-2">{formatInteger(result.averageBacktracks)}</td>
-                              <td className="px-3 py-2">{formatInteger(result.averageBranchesPruned)}</td>
-                              <td className="px-3 py-2">{formatInteger(result.averageSolutionsFound)}</td>
-                              <td className="px-3 py-2">{speedup ? `${speedup.toFixed(2)}x` : "N/A"}</td>
-                            </tr>
+                              </TableCell>
+                              <TableCell className="capitalize">{result.mode}</TableCell>
+                              <TableCell>{formatMs(result.averageElapsedMs)}</TableCell>
+                              <TableCell>{formatMs(result.bestElapsedMs)}</TableCell>
+                              <TableCell>{formatInteger(result.averageRecursiveCalls)}</TableCell>
+                              <TableCell>{formatInteger(result.averageBacktracks)}</TableCell>
+                              <TableCell>{formatInteger(result.averageBranchesPruned)}</TableCell>
+                              <TableCell>{formatInteger(result.averageSolutionsFound)}</TableCell>
+                              <TableCell>{speedup ? `${speedup.toFixed(2)}x` : "N/A"}</TableCell>
+                            </TableRow>
                           );
                         })}
-                      </tbody>
-                    </table>
-                  </div>
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
 
                   <div className="space-y-3">
                     {[...byBoardSize.entries()].map(([boardSize, entries]) => (
-                      <article key={boardSize} className="rounded-lg border border-border/60 bg-background/25 p-3">
+                      <article key={boardSize} className="rounded-xl border border-border/60 bg-background/25 p-3.5">
                         <p className="mb-2 text-sm font-semibold">
                           N = {boardSize} ({mode === "first" ? "First Solution" : "All Solutions"})
                         </p>
                         <div className="space-y-2">
                           {entries.map((entry) => {
-                            const width = `${(entry.averageElapsedMs / maxElapsed) * 100}%`;
+                            const width = (entry.averageElapsedMs / maxElapsed) * 100;
                             const classic = baselineByBoardSize.get(entry.boardSize);
                             const speedup = classic && entry.averageElapsedMs > 0 ? classic / entry.averageElapsedMs : null;
                             return (
@@ -741,9 +896,10 @@ export function BenchmarkLabShell() {
                                     {formatMs(entry.averageElapsedMs)} {speedup ? `(${speedup.toFixed(2)}x)` : ""}
                                   </span>
                                 </div>
-                                <div className="h-2 rounded-full bg-secondary/60">
-                                  <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width }} />
-                                </div>
+                                <Progress
+                                  value={width}
+                                  indicatorClassName="bg-gradient-to-r from-cyan-400 via-primary to-blue-500"
+                                />
                               </div>
                             );
                           })}
@@ -752,20 +908,11 @@ export function BenchmarkLabShell() {
                     ))}
                   </div>
 
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    <article className="rounded-lg border border-border/60 bg-background/25 p-3">
-                      <p className="text-xs text-muted-foreground">Configured Runs</p>
-                      <p className="text-lg font-semibold">{runs}</p>
-                    </article>
-                    <article className="rounded-lg border border-border/60 bg-background/25 p-3">
-                      <p className="text-xs text-muted-foreground">Symmetry Active</p>
-                      <p className="text-lg font-semibold">{symmetryEnabled ? "Yes" : "No"}</p>
-                    </article>
-                    <article className="rounded-lg border border-border/60 bg-background/25 p-3">
-                      <p className="text-xs text-muted-foreground">Search Strategy</p>
-                      <p className="text-lg font-semibold">{SEARCH_STRATEGY_LABELS[searchStrategy]}</p>
-                    </article>
-                  </div>
+                  <BenchmarkSummaryCards className="grid gap-2 sm:grid-cols-3">
+                    <BenchmarkSummaryCard title="Configured Runs" value={runs} />
+                    <BenchmarkSummaryCard title="Symmetry Active" value={symmetryEnabled ? "Yes" : "No"} />
+                    <BenchmarkSummaryCard title="Search Strategy" value={SEARCH_STRATEGY_LABELS[searchStrategy]} />
+                  </BenchmarkSummaryCards>
 
                   <p className="text-xs text-muted-foreground">
                     Speedup ratio uses Classic Backtracking as baseline for the same board size. Estimated search reduction from symmetry
@@ -773,9 +920,12 @@ export function BenchmarkLabShell() {
                   </p>
                 </>
               )}
-            </CardContent>
-          </Card>
-        </motion.section>
+            </div>
+          </BenchmarkResultsTable>
+              </motion.section>
+            </TabsContent>
+          </Tabs>
+        </TooltipProvider>
       </main>
     </div>
   );
