@@ -144,6 +144,27 @@ export function InsightsSidebar({ className, analytics, performance, strategyPer
 
             <article className={compactCardClass}>
               <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Solving Objective</p>
+                <Timer className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="font-semibold">{analytics.solvingObjective}</p>
+                <p className="text-muted-foreground">
+                  Time to first solution:{" "}
+                  {analytics.timeToFirstSolutionMs !== null ? formatElapsed(analytics.timeToFirstSolutionMs) : "No run yet"}
+                </p>
+                <p className="text-muted-foreground">
+                  Time to all solutions:{" "}
+                  {analytics.timeToAllSolutionsMs !== null ? formatElapsed(analytics.timeToAllSolutionsMs) : "No run yet"}
+                </p>
+                <p className="text-muted-foreground">
+                  First solution path: {analytics.firstSolutionPath ?? "No path captured yet"}
+                </p>
+              </div>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">Dead-State Pruning</p>
                 <CornerDownLeft className="h-3.5 w-3.5 text-primary" />
               </div>

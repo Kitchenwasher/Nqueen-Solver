@@ -13,7 +13,15 @@ import {
   solveNQueenBacktracking,
   type SolverEventType
 } from "@/lib/nqueen-solver";
-import type { BoardSize, CellCoordinate, SearchStrategy, SolverAlgorithm, SolverMode, SolverMoveState } from "@/types/chessboard";
+import type {
+  BoardSize,
+  CellCoordinate,
+  SearchStrategy,
+  SolverAlgorithm,
+  SolverMode,
+  SolverMoveState,
+  SolvingObjective
+} from "@/types/chessboard";
 import type {
   AlgorithmPerformanceMap,
   AlgorithmRunSummary,
@@ -85,6 +93,25 @@ function getAlgorithmLabel(algorithm: SolverAlgorithm) {
   return "Classic Backtracking";
 }
 
+function getSolvingObjectiveLabel(objective: SolvingObjective) {
+  if (objective === "enumerate-all") {
+    return "Enumerate All Solutions";
+  }
+  return "Fastest First Solution";
+}
+
+function formatFirstSolutionPath(queensByRow: number[]) {
+  const placements = queensByRow
+    .map((col, row) => (col >= 0 ? `R${row + 1}C${col + 1}` : null))
+    .filter((item): item is string => item !== null);
+
+  if (placements.length === 0) {
+    return null;
+  }
+
+  return placements.join(" -> ");
+}
+
 export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: UseNQueenSolverOptions) {
   const [phase, setPhase] = useState<SolverPhase>("idle");
   const [algorithm, setAlgorithm] = useState<SolverAlgorithm>("classic");
@@ -92,6 +119,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const [speedMs, setSpeedMs] = useState(DEFAULT_SPEED_MS);
   const [symmetryEnabled, setSymmetryEnabled] = useState(true);
   const [searchStrategy, setSearchStrategy] = useState<SearchStrategy>("left-to-right");
+  const [solvingObjective, setSolvingObjective] = useState<SolvingObjective>("fastest-first");
   const [splitDepthMode, setSplitDepthMode] = useState<ParallelSplitDepthMode>("auto");
   const [manualSplitDepth, setManualSplitDepth] = useState<0 | 1 | 2>(1);
   const [logs, setLogs] = useState<SolverLogEntry[]>([]);
@@ -115,6 +143,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const [parallelTasksTotal, setParallelTasksTotal] = useState(0);
   const [parallelSplitDepthUsed, setParallelSplitDepthUsed] = useState(0);
   const [parallelLoadBalancingEffectiveness, setParallelLoadBalancingEffectiveness] = useState(0);
+  const [timeToFirstSolutionMs, setTimeToFirstSolutionMs] = useState<number | null>(null);
+  const [timeToAllSolutionsMs, setTimeToAllSolutionsMs] = useState<number | null>(null);
+  const [firstSolutionPath, setFirstSolutionPath] = useState<string | null>(null);
   const [symmetryStats, setSymmetryStats] = useState<SymmetryStats>(DEFAULT_SYMMETRY_STATS);
   const [pruningStats, setPruningStats] = useState<PruningStats>(DEFAULT_PRUNING_STATS);
 
@@ -183,6 +214,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setParallelTasksTotal(0);
     setParallelSplitDepthUsed(0);
     setParallelLoadBalancingEffectiveness(0);
+    setTimeToFirstSolutionMs(null);
+    setTimeToAllSolutionsMs(null);
+    setFirstSolutionPath(null);
     setSymmetryStats(DEFAULT_SYMMETRY_STATS);
     setPruningStats(DEFAULT_PRUNING_STATS);
     startedAtRef.current = null;
@@ -358,6 +392,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
       const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
       setElapsedMs(finalElapsed);
+      setTimeToFirstSolutionMs(finalElapsed);
       setRecursiveCalls(parallelResult.recursiveCalls);
       setBacktracks(parallelResult.backtracks);
       setSolutionsFound(parallelResult.solutionsFound);
@@ -371,6 +406,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
       if (parallelResult.solutions.length > 0) {
         setStoredSolutions([parallelResult.solutions[0]]);
+        setFirstSolutionPath(formatFirstSolutionPath(parallelResult.solutions[0]));
         setQueenCells(queensByRowToKeys(parallelResult.solutions[0]));
         setMoveState("valid");
         appendLog("solution-found", "Solution found using parallel workers.", null, null);
@@ -466,6 +502,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     }
 
     if (result.solved) {
+      setFirstSolutionPath(formatFirstSolutionPath(result.queensByRow));
       setStoredSolutions([result.queensByRow]);
       setCurrentSolutionIndex(0);
       setAllSolutionsCapped(false);
@@ -473,6 +510,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
     const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     setElapsedMs(finalElapsed);
+    setTimeToFirstSolutionMs(finalElapsed);
     setRecursiveCalls(result.recursiveCalls);
     setBacktracks(result.backtracks);
     setSolutionsFound(result.solutionsFound);
@@ -538,6 +576,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
       const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
       setElapsedMs(finalElapsed);
+      setTimeToAllSolutionsMs(finalElapsed);
       setRecursiveCalls(parallelResult.recursiveCalls);
       setBacktracks(parallelResult.backtracks);
       setSolutionsFound(parallelResult.solutionsFound);
@@ -564,6 +603,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       saveStrategySnapshot(selectedAlgorithm, searchStrategy, "all", finalElapsed);
 
       if (parallelResult.solutions.length > 0) {
+        setFirstSolutionPath(formatFirstSolutionPath(parallelResult.solutions[0]));
         setQueenCells(queensByRowToKeys(parallelResult.solutions[0]));
         setActiveCell(null);
         appendLog(
@@ -633,6 +673,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
     const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
     setElapsedMs(finalElapsed);
+    setTimeToAllSolutionsMs(finalElapsed);
     savePerformanceSnapshot(selectedAlgorithm, {
       elapsedMs: finalElapsed,
       recursiveCalls: result.recursiveCalls,
@@ -643,6 +684,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     saveStrategySnapshot(selectedAlgorithm, searchStrategy, "all", finalElapsed);
 
     if (result.solutions.length > 0) {
+      setFirstSolutionPath(formatFirstSolutionPath(result.solutions[0]));
       setQueenCells(queensByRowToKeys(result.solutions[0]));
       setActiveCell(null);
       setLogs((previous) => {
@@ -678,6 +720,15 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     searchStrategy,
     symmetryEnabled
   ]);
+
+  const runSelectedObjective = useCallback(async () => {
+    if (solvingObjective === "enumerate-all") {
+      await findAllSolutions();
+      return;
+    }
+
+    await findFirstSolution();
+  }, [findAllSolutions, findFirstSolution, solvingObjective]);
 
   const goToNextSolution = useCallback(() => {
     if (isBusy || totalStoredSolutions === 0) {
@@ -787,6 +838,11 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       solverStatus: phase,
       searchStrategy: getSearchStrategyLabel(searchStrategy),
       selectedSearchStrategy: searchStrategy,
+      solvingObjective: getSolvingObjectiveLabel(solvingObjective),
+      selectedSolvingObjective: solvingObjective,
+      timeToFirstSolutionMs,
+      timeToAllSolutionsMs,
+      firstSolutionPath,
       symmetry: {
         enabled: symmetryStats.active,
         branchesSkipped: symmetryStats.branchesSkipped,
@@ -827,6 +883,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       phase,
       recursiveCalls,
       searchStrategy,
+      solvingObjective,
+      timeToFirstSolutionMs,
+      timeToAllSolutionsMs,
+      firstSolutionPath,
       searchDepth,
       symmetryEnabled,
       pruningStats.branchesPruned,
@@ -845,6 +905,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     mode,
     speedMs,
     searchStrategy,
+    solvingObjective,
     splitDepthMode,
     manualSplitDepth,
     symmetryEnabled,
@@ -863,11 +924,13 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setMode,
     setSpeedMs,
     setSearchStrategy,
+    setSolvingObjective,
     setSplitDepthMode,
     setManualSplitDepth,
     setSymmetryEnabled,
     findFirstSolution,
     findAllSolutions,
+    runSelectedObjective,
     goToNextSolution,
     goToPreviousSolution,
     pause,

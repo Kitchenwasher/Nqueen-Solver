@@ -210,6 +210,11 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     void solver.findAllSolutions();
   }, [solver]);
 
+  const handleRunObjective = useCallback(() => {
+    setValidationOrigin("live");
+    void solver.runSelectedObjective();
+  }, [solver]);
+
   const handleAlgorithmChange = useCallback(
     (algorithm: SolverAlgorithm) => {
       if (solver.isBusy) {
@@ -454,6 +459,26 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 </Button>
               </div>
 
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Solving Objective</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={solver.solvingObjective === "fastest-first" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSolvingObjective("fastest-first")}
+                  disabled={solver.isBusy}
+                >
+                  Fastest First Solution
+                </Button>
+                <Button
+                  variant={solver.solvingObjective === "enumerate-all" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSolvingObjective("enumerate-all")}
+                  disabled={solver.isBusy}
+                >
+                  Enumerate All Solutions
+                </Button>
+              </div>
+
               <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Parallel Split Depth</p>
               <div className="flex flex-wrap gap-2">
                 <Button
@@ -583,6 +608,10 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
               <Button className="gap-2" size="sm" onClick={handleFindAllSolutions} disabled={solver.isBusy}>
                 <PlayCircle className="h-4 w-4" />
                 Find All Solutions
+              </Button>
+              <Button className="gap-2" size="sm" onClick={handleRunObjective} disabled={solver.isBusy}>
+                <PlayCircle className="h-4 w-4" />
+                Run Selected Objective
               </Button>
               <Button
                 variant="secondary"

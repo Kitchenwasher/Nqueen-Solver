@@ -200,7 +200,7 @@ export function BenchmarkLabShell() {
               </div>
               <CardTitle>Algorithm Benchmark Platform</CardTitle>
               <CardDescription>
-                Compare classic, optimized, bitmask, and parallel solver performance across board sizes and modes.
+                Compare fastest-first objective vs all-solutions objective across classic, optimized, bitmask, and parallel solvers.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

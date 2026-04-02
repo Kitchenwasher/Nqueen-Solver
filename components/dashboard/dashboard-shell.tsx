@@ -24,6 +24,11 @@ const initialAnalytics: SolverAnalytics = {
   solverStatus: "idle",
   searchStrategy: "Left to Right",
   selectedSearchStrategy: "left-to-right",
+  solvingObjective: "Fastest First Solution",
+  selectedSolvingObjective: "fastest-first",
+  timeToFirstSolutionMs: null,
+  timeToAllSolutionsMs: null,
+  firstSolutionPath: null,
   symmetry: {
     enabled: false,
     branchesSkipped: 0,

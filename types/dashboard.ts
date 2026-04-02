@@ -1,4 +1,4 @@
-import type { SearchStrategy, SolverAlgorithm } from "@/types/chessboard";
+import type { SearchStrategy, SolverAlgorithm, SolvingObjective } from "@/types/chessboard";
 
 export type SolverAnalytics = {
   algorithm: string;
@@ -14,6 +14,11 @@ export type SolverAnalytics = {
   solverStatus: string;
   searchStrategy: string;
   selectedSearchStrategy: SearchStrategy;
+  solvingObjective: string;
+  selectedSolvingObjective: SolvingObjective;
+  timeToFirstSolutionMs: number | null;
+  timeToAllSolutionsMs: number | null;
+  firstSolutionPath: string | null;
   symmetry: {
     enabled: boolean;
     branchesSkipped: number;

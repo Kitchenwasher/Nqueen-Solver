@@ -27,3 +27,5 @@ export type SolverAlgorithm = "classic" | "optimized" | "bitmask" | "parallel";
 export type SearchStrategy = "left-to-right" | "center-first" | "heuristic";
 
 export type HeatmapMode = "off" | "exploration" | "conflict" | "solution-frequency";
+
+export type SolvingObjective = "fastest-first" | "enumerate-all";
