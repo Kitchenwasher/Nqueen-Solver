@@ -3,7 +3,7 @@ import { motion } from "framer-motion";
 import { ChessCell } from "@/components/chessboard/chess-cell";
 import { getCellKey } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
-import type { CellCoordinate, CellVisualState, SolverMoveState } from "@/types/chessboard";
+import type { CellCoordinate, CellVisualState, HeatmapMode, SolverMoveState } from "@/types/chessboard";
 
 type ChessboardProps = {
   boardSize: number;
@@ -13,6 +13,9 @@ type ChessboardProps = {
   activeCell: CellCoordinate | null;
   exploredCell?: CellCoordinate | null;
   exploredState?: SolverMoveState;
+  heatmapMode?: HeatmapMode;
+  heatmapCounts?: Record<string, number>;
+  heatmapMax?: number;
   isSolvingActive?: boolean;
   isInteractionLocked?: boolean;
   onCellClick: (cell: CellCoordinate) => void;
@@ -74,6 +77,9 @@ export function Chessboard({
   activeCell,
   exploredCell = null,
   exploredState = null,
+  heatmapMode = "off",
+  heatmapCounts = {},
+  heatmapMax = 0,
   isSolvingActive = false,
   isInteractionLocked = false,
   onCellClick
@@ -109,6 +115,8 @@ export function Chessboard({
             const isExploredCell = exploredCell?.row === row && exploredCell?.col === col;
             const isDarkSquare = (row + col) % 2 === 1;
             const state = getCellState(key, isExploredCell, exploredState, queens, attackedCells, conflictingQueens);
+            const heatmapCount = heatmapCounts[key] ?? 0;
+            const heatmapLevel = heatmapMax > 0 ? Math.min(heatmapCount / heatmapMax, 1) : 0;
 
             return (
               <ChessCell
@@ -118,6 +126,9 @@ export function Chessboard({
                 state={state}
                 isActive={isActive}
                 isDarkSquare={isDarkSquare}
+                heatmapMode={heatmapMode}
+                heatmapLevel={heatmapLevel}
+                heatmapCount={heatmapCount}
                 disabled={isInteractionLocked}
                 onClick={() => onCellClick({ row, col })}
               />

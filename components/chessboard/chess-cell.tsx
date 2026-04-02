@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Crown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import type { CellVisualState } from "@/types/chessboard";
+import type { CellVisualState, HeatmapMode } from "@/types/chessboard";
 
 type ChessCellProps = {
   row: number;
@@ -10,14 +10,43 @@ type ChessCellProps = {
   isDarkSquare: boolean;
   isActive: boolean;
   state: CellVisualState;
+  heatmapMode?: HeatmapMode;
+  heatmapLevel?: number;
+  heatmapCount?: number;
   disabled?: boolean;
   onClick: () => void;
 };
 
-export function ChessCell({ row, col, isDarkSquare, isActive, state, disabled = false, onClick }: ChessCellProps) {
+function getHeatmapOverlayClass(mode: HeatmapMode) {
+  if (mode === "exploration") {
+    return "bg-cyan-400/80";
+  }
+  if (mode === "conflict") {
+    return "bg-rose-400/80";
+  }
+  if (mode === "solution-frequency") {
+    return "bg-emerald-400/80";
+  }
+  return "";
+}
+
+export function ChessCell({
+  row,
+  col,
+  isDarkSquare,
+  isActive,
+  state,
+  heatmapMode = "off",
+  heatmapLevel = 0,
+  heatmapCount = 0,
+  disabled = false,
+  onClick
+}: ChessCellProps) {
   const isQueen = state === "queen" || state === "conflicting";
   const marker =
     state === "invalid" ? "!" : state === "backtracking" ? "<" : state === "trying" || state === "attacked" ? "x" : ".";
+  const showHeatmap = heatmapMode !== "off" && heatmapLevel > 0;
+  const heatmapOpacity = Math.min(0.12 + heatmapLevel * 0.72, 0.84);
 
   return (
     <motion.button
@@ -43,9 +72,17 @@ export function ChessCell({ row, col, isDarkSquare, isActive, state, disabled = 
         state === "queen" && "border-primary/50 bg-primary/15",
         state === "conflicting" &&
           "border-rose-400/60 bg-rose-500/18 shadow-[0_0_0_1px_rgba(251,113,133,0.35)]",
-        isActive && "ring-2 ring-primary/85 ring-offset-1 ring-offset-background"
+        isActive && "ring-2 ring-primary/85 ring-offset-1 ring-offset-background",
+        showHeatmap && "backdrop-brightness-[1.03]"
       )}
     >
+      {showHeatmap && (
+        <span
+          className={cn("pointer-events-none absolute inset-0 rounded-[8px] transition-opacity", getHeatmapOverlayClass(heatmapMode))}
+          style={{ opacity: heatmapOpacity }}
+        />
+      )}
+
       <AnimatePresence mode="wait">
         {isQueen ? (
           <motion.span
@@ -77,6 +114,12 @@ export function ChessCell({ row, col, isDarkSquare, isActive, state, disabled = 
           </motion.span>
         )}
       </AnimatePresence>
+
+      {showHeatmap && (
+        <span className="pointer-events-none absolute right-1 top-1 rounded bg-background/70 px-1 py-[1px] text-[9px] text-foreground/90">
+          {heatmapCount}
+        </span>
+      )}
     </motion.button>
   );
 }

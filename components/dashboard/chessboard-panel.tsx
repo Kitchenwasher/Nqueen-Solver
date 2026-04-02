@@ -21,12 +21,13 @@ import { Chessboard } from "@/components/chessboard/chessboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SearchTreeVisualizer } from "@/components/dashboard/search-tree-visualizer";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { useHardwareProfile } from "@/hooks/use-hardware-profile";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
-import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type SolverAlgorithm } from "@/types/chessboard";
+import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type HeatmapMode, type SolverAlgorithm } from "@/types/chessboard";
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 type ChessboardPanelProps = {
@@ -54,6 +55,8 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
   const [queenCells, setQueenCells] = useState<string[]>([]);
   const [activeCell, setActiveCell] = useState<CellCoordinate | null>(null);
   const [validationOrigin, setValidationOrigin] = useState<ValidationOrigin>("live");
+  const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(true);
+  const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("off");
 
   const solver = useNQueenSolver({
     boardSize,
@@ -69,6 +72,81 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
     () => getBoardValidation(boardSize, queens, conflictingQueens),
     [boardSize, queens, conflictingQueens]
   );
+  const heatmapSupported = solver.algorithm !== "parallel";
+
+  useEffect(() => {
+    if (!heatmapSupported && heatmapMode !== "off") {
+      setHeatmapMode("off");
+    }
+  }, [heatmapMode, heatmapSupported]);
+
+  const heatmaps = useMemo(() => {
+    const exploration: Record<string, number> = {};
+    const conflict: Record<string, number> = {};
+    const solutionFrequency: Record<string, number> = {};
+
+    for (const entry of solver.logs) {
+      if (entry.row === null || entry.col === null) {
+        continue;
+      }
+
+      const key = getCellKey(entry.row, entry.col);
+      if (entry.eventType === "trying-move" || entry.eventType === "queen-placed") {
+        exploration[key] = (exploration[key] ?? 0) + 1;
+      }
+      if (entry.eventType === "invalid-move") {
+        conflict[key] = (conflict[key] ?? 0) + 1;
+      }
+    }
+
+    for (const solution of solver.storedSolutions) {
+      solution.forEach((col, row) => {
+        if (col >= 0) {
+          const key = getCellKey(row, col);
+          solutionFrequency[key] = (solutionFrequency[key] ?? 0) + 1;
+        }
+      });
+    }
+
+    const maxExploration = Math.max(0, ...Object.values(exploration));
+    const maxConflict = Math.max(0, ...Object.values(conflict));
+    const maxSolutionFrequency = Math.max(0, ...Object.values(solutionFrequency));
+
+    return {
+      exploration,
+      conflict,
+      solutionFrequency,
+      maxExploration,
+      maxConflict,
+      maxSolutionFrequency
+    };
+  }, [solver.logs, solver.storedSolutions]);
+
+  const activeHeatmapCounts = useMemo(() => {
+    if (heatmapMode === "exploration") {
+      return heatmaps.exploration;
+    }
+    if (heatmapMode === "conflict") {
+      return heatmaps.conflict;
+    }
+    if (heatmapMode === "solution-frequency") {
+      return heatmaps.solutionFrequency;
+    }
+    return {};
+  }, [heatmapMode, heatmaps.conflict, heatmaps.exploration, heatmaps.solutionFrequency]);
+
+  const activeHeatmapMax = useMemo(() => {
+    if (heatmapMode === "exploration") {
+      return heatmaps.maxExploration;
+    }
+    if (heatmapMode === "conflict") {
+      return heatmaps.maxConflict;
+    }
+    if (heatmapMode === "solution-frequency") {
+      return heatmaps.maxSolutionFrequency;
+    }
+    return 0;
+  }, [heatmapMode, heatmaps.maxConflict, heatmaps.maxExploration, heatmaps.maxSolutionFrequency]);
 
   useEffect(() => {
     onAnalyticsChange?.(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);
@@ -259,6 +337,9 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
               activeCell={activeCell}
               exploredCell={solver.exploredCell}
               exploredState={solver.moveState}
+              heatmapMode={heatmapSupported ? heatmapMode : "off"}
+              heatmapCounts={activeHeatmapCounts}
+              heatmapMax={activeHeatmapMax}
               isSolvingActive={solver.phase === "solving" || solver.phase === "stepping"}
               isInteractionLocked={solver.isBusy}
               onCellClick={handleCellClick}
@@ -419,6 +500,60 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   Depth 2
                 </Button>
               </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Tree Visualizer</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={isSearchTreeVisible ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setIsSearchTreeVisible(true)}
+                >
+                  Tree ON
+                </Button>
+                <Button
+                  variant={!isSearchTreeVisible ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setIsSearchTreeVisible(false)}
+                >
+                  Tree OFF
+                </Button>
+              </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Heatmap</p>
+              <div className="flex flex-wrap gap-2">
+                <Button variant={heatmapMode === "off" ? "default" : "outline"} size="sm" onClick={() => setHeatmapMode("off")}>
+                  Off
+                </Button>
+                <Button
+                  variant={heatmapMode === "exploration" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHeatmapMode("exploration")}
+                  disabled={!heatmapSupported}
+                >
+                  Exploration
+                </Button>
+                <Button
+                  variant={heatmapMode === "conflict" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHeatmapMode("conflict")}
+                  disabled={!heatmapSupported}
+                >
+                  Conflict
+                </Button>
+                <Button
+                  variant={heatmapMode === "solution-frequency" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setHeatmapMode("solution-frequency")}
+                  disabled={!heatmapSupported}
+                >
+                  Solution Frequency
+                </Button>
+              </div>
+              {!heatmapSupported && (
+                <p className="text-xs text-muted-foreground">
+                  Heatmap is disabled in Parallel Solver mode for accuracy.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2 lg:min-w-[280px]">
@@ -561,6 +696,8 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
               </div>
             </ScrollArea>
           </motion.section>
+
+          {isSearchTreeVisible && <SearchTreeVisualizer logs={solver.logs} phase={solver.phase} boardSize={boardSize} />}
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">
