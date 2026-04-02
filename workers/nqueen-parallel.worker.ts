@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 
+import { hasFutureFeasibleRowsBitmask, hasRemainingColumnCapacityBitmask } from "../lib/solvers/pruning";
 import type { ParallelSolveTask, ParallelSolveTaskResult } from "../lib/parallel/types";
 
 type SolveMessage = {
@@ -19,6 +20,8 @@ function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
   let recursiveCalls = 0;
   let backtracks = 0;
   let solutionsFound = 0;
+  let branchesPruned = 0;
+  let deadStatesDetected = 0;
   let capped = false;
   const storedSolutions: number[][] = [];
 
@@ -38,6 +41,18 @@ function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
     if (row === n) {
       recordSolution();
       return !findAll;
+    }
+
+    if (!hasRemainingColumnCapacityBitmask(n, row, columns, fullMask)) {
+      branchesPruned += 1;
+      deadStatesDetected += 1;
+      return false;
+    }
+
+    if (!hasFutureFeasibleRowsBitmask(row, n, fullMask, columns, diagonals, antiDiagonals)) {
+      branchesPruned += 1;
+      deadStatesDetected += 1;
+      return false;
     }
 
     let available = fullMask & ~(columns | diagonals | antiDiagonals);
@@ -65,6 +80,8 @@ function solveTask(task: ParallelSolveTask): ParallelSolveTaskResult {
     recursiveCalls,
     backtracks,
     solutionsFound,
+    branchesPruned,
+    deadStatesDetected,
     storedSolutions,
     capped
   };

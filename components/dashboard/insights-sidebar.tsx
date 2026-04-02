@@ -15,12 +15,13 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import type { AlgorithmPerformanceMap, SolverAnalytics } from "@/types/dashboard";
+import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 type InsightsSidebarProps = {
   className?: string;
   analytics: SolverAnalytics;
   performance: AlgorithmPerformanceMap;
+  strategyPerformance: StrategyPerformanceMap;
 };
 
 function formatElapsed(elapsedMs: number) {
@@ -39,10 +40,11 @@ function prettyStatus(status: string) {
 
 const compactCardClass = "rounded-lg border border-border/50 bg-background/30 p-3";
 
-export function InsightsSidebar({ className, analytics, performance }: InsightsSidebarProps) {
+export function InsightsSidebar({ className, analytics, performance, strategyPerformance }: InsightsSidebarProps) {
   const progressPercent = Math.min((analytics.searchDepth / Math.max(analytics.boardSize, 1)) * 100, 100);
   const classic = performance.classic;
   const optimized = performance.optimized;
+  const bitmask = performance.bitmask;
 
   const comparable =
     !!classic &&
@@ -58,6 +60,15 @@ export function InsightsSidebar({ className, analytics, performance }: InsightsS
   const recursiveGain = comparable
     ? ((classic.recursiveCalls - optimized.recursiveCalls) / Math.max(classic.recursiveCalls, 1)) * 100
     : null;
+
+  const strategyMetrics = strategyPerformance[analytics.selectedAlgorithm];
+  const selectedStrategyMetrics = strategyMetrics?.[analytics.selectedSearchStrategy];
+  const strategyOrder = ["left-to-right", "center-first", "heuristic"] as const;
+  const strategyLabels: Record<(typeof strategyOrder)[number], string> = {
+    "left-to-right": "Left to Right",
+    "center-first": "Center First",
+    heuristic: "Heuristic Search"
+  };
 
   return (
     <aside className={className}>
@@ -93,17 +104,97 @@ export function InsightsSidebar({ className, analytics, performance }: InsightsS
 
             <article className={compactCardClass}>
               <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Symmetry Optimization</p>
+                <Bot className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="font-semibold">{analytics.symmetry.enabled ? "Active" : "Inactive"}</p>
+                <p className="text-muted-foreground">Branches skipped: {analytics.symmetry.branchesSkipped}</p>
+                <p className="text-muted-foreground">
+                  Estimated search reduction: {(analytics.symmetry.estimatedSearchReduction * 100).toFixed(1)}%
+                </p>
+                <p className="text-muted-foreground">Effective speedup: {analytics.symmetry.effectiveSpeedup.toFixed(2)}x</p>
+              </div>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Search Strategy</p>
+                <Zap className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="font-semibold">{analytics.searchStrategy}</p>
+                <p className="text-muted-foreground">
+                  First-solution time:{" "}
+                  {selectedStrategyMetrics?.firstSolutionElapsedMs !== undefined
+                    ? formatElapsed(selectedStrategyMetrics.firstSolutionElapsedMs)
+                    : "No run yet"}
+                </p>
+                <p className="text-muted-foreground">
+                  All-solutions time:{" "}
+                  {selectedStrategyMetrics?.allSolutionsElapsedMs !== undefined
+                    ? formatElapsed(selectedStrategyMetrics.allSolutionsElapsedMs)
+                    : "No run yet"}
+                </p>
+              </div>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Dead-State Pruning</p>
+                <CornerDownLeft className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                <p className="text-muted-foreground">Branches pruned: {analytics.pruning.branchesPruned}</p>
+                <p className="text-muted-foreground">Dead states detected: {analytics.pruning.deadStatesDetected}</p>
+                <p className="text-muted-foreground">
+                  Estimated work saved: {(analytics.pruning.estimatedWorkSaved * 100).toFixed(1)}%
+                </p>
+              </div>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Strategy Time Comparison</p>
+                <Timer className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="space-y-1 text-xs">
+                {strategyOrder.map((strategy) => {
+                  const metrics = strategyMetrics?.[strategy];
+                  return (
+                    <p key={strategy} className="text-muted-foreground">
+                      {strategyLabels[strategy]}:{" "}
+                      {metrics?.allSolutionsElapsedMs !== undefined
+                        ? `All ${formatElapsed(metrics.allSolutionsElapsedMs)}`
+                        : "All N/A"}
+                      {" | "}
+                      {metrics?.firstSolutionElapsedMs !== undefined
+                        ? `First ${formatElapsed(metrics.firstSolutionElapsedMs)}`
+                        : "First N/A"}
+                    </p>
+                  );
+                })}
+              </div>
+            </article>
+
+            <article className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">Algorithm Comparison</p>
                 <Zap className="h-3.5 w-3.5 text-primary" />
               </div>
-              {!classic && !optimized && <p className="text-xs text-muted-foreground">Run each algorithm once to compare.</p>}
-              {(classic || optimized) && (
+              {!classic && !optimized && !bitmask && (
+                <p className="text-xs text-muted-foreground">Run each algorithm once to compare.</p>
+              )}
+              {(classic || optimized || bitmask) && (
                 <div className="space-y-1.5 text-xs">
                   <p className="text-muted-foreground">
                     Classic: {classic ? `${formatElapsed(classic.elapsedMs)} | ${classic.recursiveCalls} calls` : "No run yet"}
                   </p>
                   <p className="text-muted-foreground">
                     Optimized: {optimized ? `${formatElapsed(optimized.elapsedMs)} | ${optimized.recursiveCalls} calls` : "No run yet"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    Bitmask: {bitmask ? `${formatElapsed(bitmask.elapsedMs)} | ${bitmask.recursiveCalls} calls` : "No run yet"}
                   </p>
                   {comparable && speedGain !== null && recursiveGain !== null && (
                     <p className="font-medium text-emerald-200">

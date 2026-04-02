@@ -6,6 +6,8 @@ export type ParallelSolveTask = {
   diagMask: number;
   antiDiagMask: number;
   placements: number[];
+  mirrorFactor: 1 | 2;
+  mirrorStoredSolutions: boolean;
   findAll: boolean;
   maxStoredSolutions: number;
 };
@@ -15,6 +17,8 @@ export type ParallelSolveTaskResult = {
   recursiveCalls: number;
   backtracks: number;
   solutionsFound: number;
+  branchesPruned: number;
+  deadStatesDetected: number;
   storedSolutions: number[][];
   capped: boolean;
 };

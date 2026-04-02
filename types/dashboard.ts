@@ -1,4 +1,4 @@
-import type { SolverAlgorithm } from "@/types/chessboard";
+import type { SearchStrategy, SolverAlgorithm } from "@/types/chessboard";
 
 export type SolverAnalytics = {
   algorithm: string;
@@ -12,6 +12,19 @@ export type SolverAnalytics = {
   searchDepth: number;
   boardSize: number;
   solverStatus: string;
+  searchStrategy: string;
+  selectedSearchStrategy: SearchStrategy;
+  symmetry: {
+    enabled: boolean;
+    branchesSkipped: number;
+    estimatedSearchReduction: number;
+    effectiveSpeedup: number;
+  };
+  pruning: {
+    branchesPruned: number;
+    deadStatesDetected: number;
+    estimatedWorkSaved: number;
+  };
   parallel?: {
     totalWorkers: number;
     activeWorkers: number;
@@ -26,6 +39,17 @@ export type AlgorithmRunSummary = {
   backtracks: number;
   solutionsFound: number;
   boardSize: number;
+  symmetryEnabled: boolean;
 };
 
 export type AlgorithmPerformanceMap = Partial<Record<SolverAlgorithm, AlgorithmRunSummary>>;
+
+export type StrategyRunSummary = {
+  boardSize: number;
+  firstSolutionElapsedMs?: number;
+  allSolutionsElapsedMs?: number;
+};
+
+export type StrategyPerformanceMap = Partial<
+  Record<SolverAlgorithm, Partial<Record<SearchStrategy, StrategyRunSummary>>>
+>;

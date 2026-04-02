@@ -8,9 +8,12 @@ type ControlSidebarProps = {
 
 const quickSteps = [
   "Select board size and solver algorithm in the board panel.",
+  "Toggle Symmetry Optimization ON to skip mirrored root branches.",
+  "Pick a search strategy: Left to Right, Center First, or Heuristic Search.",
   "Choose Auto-play or Step-by-step for traversal pacing.",
+  "Use pruning stats in Insights to measure branches pruned and dead states avoided.",
   "Use Find First or Find All to run the selected strategy.",
-  "Inspect analytics and compare Classic vs Optimized runs."
+  "Inspect analytics and compare Classic, Optimized, and Bitmask runs."
 ] as const;
 
 export function ControlSidebar({ className }: ControlSidebarProps) {

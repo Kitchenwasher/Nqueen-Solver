@@ -22,4 +22,6 @@ export type SolverMoveState = "trying" | "valid" | "invalid" | "backtracking" | 
 
 export type SolverMode = "auto" | "step";
 
-export type SolverAlgorithm = "classic" | "optimized" | "parallel";
+export type SolverAlgorithm = "classic" | "optimized" | "bitmask" | "parallel";
+
+export type SearchStrategy = "left-to-right" | "center-first" | "heuristic";

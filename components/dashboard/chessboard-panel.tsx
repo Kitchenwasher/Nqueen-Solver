@@ -26,11 +26,15 @@ import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
 import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type SolverAlgorithm } from "@/types/chessboard";
-import type { AlgorithmPerformanceMap, SolverAnalytics } from "@/types/dashboard";
+import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 type ChessboardPanelProps = {
   className?: string;
-  onAnalyticsChange?: (analytics: SolverAnalytics, performance: AlgorithmPerformanceMap) => void;
+  onAnalyticsChange?: (
+    analytics: SolverAnalytics,
+    performance: AlgorithmPerformanceMap,
+    strategyPerformance: StrategyPerformanceMap
+  ) => void;
 };
 
 const STATE_LEGEND = [
@@ -65,8 +69,8 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
   );
 
   useEffect(() => {
-    onAnalyticsChange?.(solver.analytics, solver.performanceByAlgorithm);
-  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm]);
+    onAnalyticsChange?.(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);
+  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy]);
 
   const handleBoardSizeChange = useCallback(
     (value: BoardSize) => {
@@ -263,6 +267,14 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   Optimized Solver
                 </Button>
                 <Button
+                  variant={solver.algorithm === "bitmask" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleAlgorithmChange("bitmask")}
+                  disabled={solver.isBusy}
+                >
+                  Bitmask Solver
+                </Button>
+                <Button
                   variant={solver.algorithm === "parallel" ? "default" : "outline"}
                   size="sm"
                   onClick={() => handleAlgorithmChange("parallel")}
@@ -288,6 +300,54 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   disabled={solver.algorithm === "parallel"}
                 >
                   Step-by-step
+                </Button>
+              </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Symmetry Optimization</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={solver.symmetryEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSymmetryEnabled(true)}
+                  disabled={solver.isBusy}
+                >
+                  Symmetry ON
+                </Button>
+                <Button
+                  variant={!solver.symmetryEnabled ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSymmetryEnabled(false)}
+                  disabled={solver.isBusy}
+                >
+                  Symmetry OFF
+                </Button>
+              </div>
+
+              <p className="pt-1 text-xs uppercase tracking-[0.13em] text-muted-foreground">Search Strategy</p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant={solver.searchStrategy === "left-to-right" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSearchStrategy("left-to-right")}
+                  disabled={solver.isBusy}
+                >
+                  Left to Right
+                </Button>
+                <Button
+                  variant={solver.searchStrategy === "center-first" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSearchStrategy("center-first")}
+                  disabled={solver.isBusy}
+                >
+                  Center First
+                </Button>
+                <Button
+                  variant={solver.searchStrategy === "heuristic" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => solver.setSearchStrategy("heuristic")}
+                  disabled={solver.isBusy}
+                >
+                  Heuristic Search
                 </Button>
               </div>
             </div>

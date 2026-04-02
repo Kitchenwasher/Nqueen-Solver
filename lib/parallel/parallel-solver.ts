@@ -1,5 +1,9 @@
 import { ParallelWorkerPool } from "@/lib/parallel/worker-pool";
+import type { SearchStrategy } from "@/types/chessboard";
+import { createPruningStats } from "@/lib/solvers/pruning";
+import { createSymmetryStats, getRootBranches, mirrorSolution } from "@/lib/solvers/symmetry";
 import type { ParallelSolveTask, ParallelWorkerPoolProgress, ParallelWorkerResult } from "@/lib/parallel/types";
+import type { PruningStats, SymmetryStats } from "@/lib/solvers/types";
 
 type ParallelProgress = ParallelWorkerPoolProgress & {
   totalWorkers: number;
@@ -16,6 +20,8 @@ type ParallelProgress = ParallelWorkerPoolProgress & {
 type RunParallelOptions = {
   n: number;
   findAll: boolean;
+  symmetryEnabled?: boolean;
+  searchStrategy?: SearchStrategy;
   maxStoredSolutions: number;
   shouldStop: () => boolean;
   onLog?: (message: string) => void;
@@ -40,17 +46,28 @@ function taskLabel(task: ParallelSolveTask) {
   return `row0-col${row0 + 1}`;
 }
 
-function generateParallelTasks(n: number, findAll: boolean, maxStoredSolutions: number): ParallelSolveTask[] {
+function generateParallelTasks(
+  n: number,
+  findAll: boolean,
+  maxStoredSolutions: number,
+  symmetryEnabled: boolean
+): ParallelSolveTask[] {
   const fullMask = (1 << n) - 1;
   const tasks: ParallelSolveTask[] = [];
   const splitDepth = n >= 12 ? 2 : 1;
   let id = 0;
+  const rootBranches = getRootBranches(n, symmetryEnabled);
 
-  let row0Available = fullMask;
+  let row0Available = rootBranches.reduce((mask, branch) => mask | (1 << branch.col), 0) & fullMask;
   while (row0Available !== 0) {
     const row0Bit = row0Available & -row0Available;
     row0Available -= row0Bit;
     const row0Col = bitToCol(row0Bit);
+    const rootBranch = rootBranches.find((branch) => branch.col === row0Col);
+
+    if (!rootBranch) {
+      continue;
+    }
 
     const colsAfterRow0 = row0Bit;
     const diagAfterRow0 = (row0Bit << 1) & fullMask;
@@ -66,6 +83,8 @@ function generateParallelTasks(n: number, findAll: boolean, maxStoredSolutions: 
         diagMask: diagAfterRow0,
         antiDiagMask: antiAfterRow0,
         placements: [row0Col, ...Array.from({ length: n - 1 }, () => -1)],
+        mirrorFactor: rootBranch.mirrorFactor,
+        mirrorStoredSolutions: !rootBranch.isMiddle,
         findAll,
         maxStoredSolutions
       });
@@ -87,6 +106,8 @@ function generateParallelTasks(n: number, findAll: boolean, maxStoredSolutions: 
         diagMask: ((diagAfterRow0 | row1Bit) << 1) & fullMask,
         antiDiagMask: (antiAfterRow0 | row1Bit) >> 1,
         placements: [row0Col, row1Col, ...Array.from({ length: n - 2 }, () => -1)],
+        mirrorFactor: rootBranch.mirrorFactor,
+        mirrorStoredSolutions: !rootBranch.isMiddle,
         findAll,
         maxStoredSolutions
       });
@@ -99,21 +120,29 @@ function generateParallelTasks(n: number, findAll: boolean, maxStoredSolutions: 
 export async function runParallelNQueenSolver({
   n,
   findAll,
+  symmetryEnabled = false,
+  searchStrategy = "left-to-right",
   maxStoredSolutions,
   shouldStop,
   onLog,
   onProgress
 }: RunParallelOptions) {
-  const tasks = generateParallelTasks(n, findAll, maxStoredSolutions);
+  void searchStrategy;
+  const tasks = generateParallelTasks(n, findAll, maxStoredSolutions, symmetryEnabled);
   const workerCount = safeWorkerCount(tasks.length);
   const pool = new ParallelWorkerPool(workerCount);
 
   let recursiveCalls = 0;
   let backtracks = 0;
   let solutionsFound = 0;
+  let branchesPruned = 0;
+  let deadStatesDetected = 0;
   let capped = false;
   let earlyFound = false;
   const storedSolutions: number[][] = [];
+  const taskMeta = new Map(tasks.map((task) => [task.id, task]));
+  const symmetry: SymmetryStats = createSymmetryStats(n, symmetryEnabled);
+  let pruning: PruningStats = createPruningStats(true, 0, 0, 0);
 
   onLog?.(`Initializing worker pool with ${workerCount} workers.`);
   onLog?.(`Generating parallel tasks: ${tasks.length} branches.`);
@@ -144,14 +173,35 @@ export async function runParallelNQueenSolver({
       onLog?.(`Worker ${workerId} solving branch ${taskLabel(task)}.`);
     },
     onTaskComplete: (result: ParallelWorkerResult) => {
+      const metadata = taskMeta.get(result.taskId);
+      const mirrorFactor = metadata?.mirrorFactor ?? 1;
+      const shouldMirrorStored = metadata?.mirrorStoredSolutions ?? false;
+
       recursiveCalls += result.recursiveCalls;
       backtracks += result.backtracks;
-      solutionsFound += result.solutionsFound;
+      solutionsFound += result.solutionsFound * mirrorFactor;
+      branchesPruned += result.branchesPruned;
+      deadStatesDetected += result.deadStatesDetected;
       capped = capped || result.capped;
+      pruning = createPruningStats(true, branchesPruned, deadStatesDetected, recursiveCalls);
 
       if (result.storedSolutions.length > 0 && storedSolutions.length < maxStoredSolutions) {
-        const remaining = maxStoredSolutions - storedSolutions.length;
-        storedSolutions.push(...result.storedSolutions.slice(0, remaining));
+        for (const solution of result.storedSolutions) {
+          if (storedSolutions.length >= maxStoredSolutions) {
+            capped = true;
+            break;
+          }
+
+          storedSolutions.push(solution);
+
+          if (findAll && shouldMirrorStored && mirrorFactor === 2) {
+            if (storedSolutions.length >= maxStoredSolutions) {
+              capped = true;
+              break;
+            }
+            storedSolutions.push(mirrorSolution(solution, n));
+          }
+        }
       }
 
       onLog?.(`Worker ${result.workerId} completed task (${result.solutionsFound} solutions).`);
@@ -182,6 +232,8 @@ export async function runParallelNQueenSolver({
     backtracks,
     solutionsFound,
     solutions: storedSolutions,
-    capped
+    capped,
+    symmetry,
+    pruning
   };
 }
