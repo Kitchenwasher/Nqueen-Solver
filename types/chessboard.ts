@@ -22,4 +22,4 @@ export type SolverMoveState = "trying" | "valid" | "invalid" | "backtracking" | 
 
 export type SolverMode = "auto" | "step";
 
-export type SolverAlgorithm = "classic" | "optimized";
+export type SolverAlgorithm = "classic" | "optimized" | "parallel";

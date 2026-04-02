@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
 
+import { runParallelNQueenSolver } from "@/lib/parallel/parallel-solver";
 import {
   findAllNQueenSolutions,
   queensByRowToKeys,
@@ -29,7 +30,7 @@ type UseNQueenSolverOptions = {
 };
 
 const DEFAULT_SPEED_MS = 130;
-const MAX_LOGS = 180;
+const MAX_LOGS = 200;
 
 function sleep(ms: number) {
   return new Promise<void>((resolve) => {
@@ -48,7 +49,13 @@ function getStorageCap(boardSize: number) {
 }
 
 function getAlgorithmLabel(algorithm: SolverAlgorithm) {
-  return algorithm === "optimized" ? "Optimized Solver" : "Classic Backtracking";
+  if (algorithm === "optimized") {
+    return "Optimized Solver";
+  }
+  if (algorithm === "parallel") {
+    return "Parallel Solver";
+  }
+  return "Classic Backtracking";
 }
 
 export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: UseNQueenSolverOptions) {
@@ -70,6 +77,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const [currentSolutionIndex, setCurrentSolutionIndex] = useState(0);
   const [allSolutionsCapped, setAllSolutionsCapped] = useState(false);
   const [performanceByAlgorithm, setPerformanceByAlgorithm] = useState<AlgorithmPerformanceMap>({});
+  const [parallelTotalWorkers, setParallelTotalWorkers] = useState(0);
+  const [parallelActiveWorkers, setParallelActiveWorkers] = useState(0);
+  const [parallelTasksCompleted, setParallelTasksCompleted] = useState(0);
+  const [parallelTasksTotal, setParallelTasksTotal] = useState(0);
 
   const stopRef = useRef(false);
   const pauseRef = useRef(false);
@@ -80,9 +91,31 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   const stepBudgetRef = useRef(0);
   const stepWaiterRef = useRef<null | (() => void)>(null);
   const startedAtRef = useRef<number | null>(null);
+  const logStepRef = useRef(0);
 
   const isBusy = useMemo(() => ["solving", "paused", "stepping", "enumerating"].includes(phase), [phase]);
   const totalStoredSolutions = storedSolutions.length;
+
+  const appendLog = useCallback(
+    (eventType: SolverEventType, message: string, row: number | null, col: number | null) => {
+      logStepRef.current += 1;
+      const step = logStepRef.current;
+      const runId = runIdRef.current;
+
+      setLogs((previous) => {
+        const next: SolverLogEntry = {
+          id: `${runId}-${step}-${eventType}`,
+          step,
+          eventType,
+          message,
+          row,
+          col
+        };
+        return [next, ...previous].slice(0, MAX_LOGS);
+      });
+    },
+    []
+  );
 
   const releaseStepWaiter = useCallback(() => {
     if (stepWaiterRef.current) {
@@ -108,7 +141,12 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setCurrentColumn(null);
     setSearchDepth(0);
     setElapsedMs(0);
+    setParallelTotalWorkers(0);
+    setParallelActiveWorkers(0);
+    setParallelTasksCompleted(0);
+    setParallelTasksTotal(0);
     startedAtRef.current = null;
+    logStepRef.current = 0;
   }, []);
 
   const clearStoredSolutions = useCallback(() => {
@@ -145,19 +183,23 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
   }, [clearRuntimeMetrics, clearStoredSolutions, clearVisualState, releaseStepWaiter]);
 
   const pause = useCallback(() => {
+    if (algorithmRef.current === "parallel") {
+      return;
+    }
     if (phase !== "solving" || modeRef.current !== "auto") {
       return;
     }
-
     pauseRef.current = true;
     setPhase("paused");
   }, [phase]);
 
   const resume = useCallback(() => {
+    if (algorithmRef.current === "parallel") {
+      return;
+    }
     if (phase !== "paused" || modeRef.current !== "auto") {
       return;
     }
-
     pauseRef.current = false;
     setPhase("solving");
   }, [phase]);
@@ -166,10 +208,54 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     if (phase !== "stepping") {
       return;
     }
-
     stepBudgetRef.current += 1;
     releaseStepWaiter();
   }, [phase, releaseStepWaiter]);
+
+  const runParallelMode = useCallback(
+    async (selectedAlgorithm: SolverAlgorithm, findAll: boolean, currentRunId: number) => {
+      if (selectedAlgorithm !== "parallel") {
+        return null;
+      }
+
+      const result = await runParallelNQueenSolver({
+        n: boardSize,
+        findAll,
+        maxStoredSolutions: findAll ? getStorageCap(boardSize) : 1,
+        shouldStop: () => stopRef.current || runIdRef.current !== currentRunId,
+        onLog: (message) => {
+          if (runIdRef.current !== currentRunId) {
+            return;
+          }
+          appendLog("worker-update", message, null, null);
+        },
+        onProgress: (progress) => {
+          if (runIdRef.current !== currentRunId) {
+            return;
+          }
+
+          setParallelTotalWorkers(progress.totalWorkers);
+          setParallelActiveWorkers(progress.activeWorkers);
+          setParallelTasksCompleted(progress.tasksCompleted);
+          setParallelTasksTotal(progress.tasksTotal);
+          setRecursiveCalls(progress.recursiveCalls);
+          setBacktracks(progress.backtracks);
+          setSolutionsFound(progress.solutionsFound);
+          setSearchDepth(progress.searchDepth);
+          setCurrentRow(progress.latestRow !== null ? progress.latestRow + 1 : null);
+          setCurrentColumn(progress.latestCol !== null ? progress.latestCol + 1 : null);
+          setAllSolutionsCapped(progress.capped);
+
+          if (startedAtRef.current) {
+            setElapsedMs(Date.now() - startedAtRef.current);
+          }
+        }
+      });
+
+      return result;
+    },
+    [appendLog, boardSize]
+  );
 
   const findFirstSolution = useCallback(async () => {
     if (isBusy) {
@@ -184,11 +270,46 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     stepBudgetRef.current = modeRef.current === "step" ? 1 : 0;
     releaseStepWaiter();
 
-    setPhase(modeRef.current === "step" ? "stepping" : "solving");
+    setPhase(selectedAlgorithm === "parallel" ? "solving" : modeRef.current === "step" ? "stepping" : "solving");
     clearVisualState();
     clearRuntimeMetrics();
     clearStoredSolutions();
     startedAtRef.current = Date.now();
+
+    if (selectedAlgorithm === "parallel") {
+      const parallelResult = await runParallelMode(selectedAlgorithm, false, currentRunId);
+      if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
+        return;
+      }
+
+      const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
+      setElapsedMs(finalElapsed);
+      setRecursiveCalls(parallelResult.recursiveCalls);
+      setBacktracks(parallelResult.backtracks);
+      setSolutionsFound(parallelResult.solutionsFound);
+      setParallelTotalWorkers(parallelResult.workerCount);
+      setParallelTasksCompleted(parallelResult.tasksTotal);
+      setParallelTasksTotal(parallelResult.tasksTotal);
+
+      if (parallelResult.solutions.length > 0) {
+        setStoredSolutions([parallelResult.solutions[0]]);
+        setQueenCells(queensByRowToKeys(parallelResult.solutions[0]));
+        setMoveState("valid");
+        appendLog("solution-found", "Solution found using parallel workers.", null, null);
+        setPhase("solved");
+      } else {
+        setMoveState("backtracking");
+        setPhase("failed");
+      }
+
+      savePerformanceSnapshot(selectedAlgorithm, {
+        elapsedMs: finalElapsed,
+        recursiveCalls: parallelResult.recursiveCalls,
+        backtracks: parallelResult.backtracks,
+        solutionsFound: parallelResult.solutionsFound
+      });
+      return;
+    }
 
     const result = await solveNQueenBacktracking({
       algorithm: selectedAlgorithm,
@@ -283,12 +404,14 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     setMoveState(result.solved ? "valid" : "backtracking");
     setPhase(result.solved ? "solved" : "failed");
   }, [
+    appendLog,
     boardSize,
     clearRuntimeMetrics,
     clearStoredSolutions,
     clearVisualState,
     isBusy,
     releaseStepWaiter,
+    runParallelMode,
     savePerformanceSnapshot,
     setActiveCell,
     setQueenCells
@@ -313,8 +436,52 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
     clearStoredSolutions();
     startedAtRef.current = Date.now();
 
-    const maxStoredSolutions = getStorageCap(boardSize);
+    if (selectedAlgorithm === "parallel") {
+      const parallelResult = await runParallelMode(selectedAlgorithm, true, currentRunId);
+      if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
+        return;
+      }
 
+      const finalElapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
+      setElapsedMs(finalElapsed);
+      setRecursiveCalls(parallelResult.recursiveCalls);
+      setBacktracks(parallelResult.backtracks);
+      setSolutionsFound(parallelResult.solutionsFound);
+      setStoredSolutions(parallelResult.solutions);
+      setCurrentSolutionIndex(0);
+      setAllSolutionsCapped(parallelResult.capped);
+      setParallelTotalWorkers(parallelResult.workerCount);
+      setParallelTasksCompleted(parallelResult.tasksTotal);
+      setParallelTasksTotal(parallelResult.tasksTotal);
+      setMoveState(parallelResult.solutions.length > 0 ? "valid" : null);
+      setExploredCell(null);
+
+      savePerformanceSnapshot(selectedAlgorithm, {
+        elapsedMs: finalElapsed,
+        recursiveCalls: parallelResult.recursiveCalls,
+        backtracks: parallelResult.backtracks,
+        solutionsFound: parallelResult.solutionsFound
+      });
+
+      if (parallelResult.solutions.length > 0) {
+        setQueenCells(queensByRowToKeys(parallelResult.solutions[0]));
+        setActiveCell(null);
+        appendLog(
+          "solution-found",
+          parallelResult.capped
+            ? `Stored ${parallelResult.solutions.length} solutions (capped).`
+            : `Stored all ${parallelResult.solutions.length} solutions.`,
+          null,
+          null
+        );
+        setPhase("solved");
+      } else {
+        setPhase("failed");
+      }
+      return;
+    }
+
+    const maxStoredSolutions = getStorageCap(boardSize);
     const result = await findAllNQueenSolutions({
       algorithm: selectedAlgorithm,
       boardSize,
@@ -390,12 +557,14 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       setPhase("failed");
     }
   }, [
+    appendLog,
     boardSize,
     clearRuntimeMetrics,
     clearStoredSolutions,
     clearVisualState,
     isBusy,
     releaseStepWaiter,
+    runParallelMode,
     savePerformanceSnapshot,
     setActiveCell,
     setQueenCells
@@ -434,7 +603,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       return;
     }
 
-    if (phase === "enumerating") {
+    if (phase === "enumerating" || algorithmRef.current === "parallel") {
       return;
     }
 
@@ -457,7 +626,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
 
   useEffect(() => {
     algorithmRef.current = algorithm;
-  }, [algorithm]);
+    if (algorithm === "parallel" && mode !== "auto") {
+      setMode("auto");
+    }
+  }, [algorithm, mode]);
 
   useEffect(() => {
     if (startedAtRef.current === null) {
@@ -503,7 +675,16 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       currentColumn,
       searchDepth,
       boardSize,
-      solverStatus: phase
+      solverStatus: phase,
+      parallel:
+        algorithm === "parallel"
+          ? {
+              totalWorkers: parallelTotalWorkers,
+              activeWorkers: parallelActiveWorkers,
+              tasksCompleted: parallelTasksCompleted,
+              tasksRemaining: Math.max(parallelTasksTotal - parallelTasksCompleted, 0)
+            }
+          : undefined
     }),
     [
       algorithm,
@@ -512,6 +693,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell }: Use
       currentColumn,
       currentRow,
       elapsedMs,
+      parallelActiveWorkers,
+      parallelTasksCompleted,
+      parallelTasksTotal,
+      parallelTotalWorkers,
       phase,
       recursiveCalls,
       searchDepth,

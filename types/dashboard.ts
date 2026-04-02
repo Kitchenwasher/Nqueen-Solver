@@ -12,6 +12,12 @@ export type SolverAnalytics = {
   searchDepth: number;
   boardSize: number;
   solverStatus: string;
+  parallel?: {
+    totalWorkers: number;
+    activeWorkers: number;
+    tasksCompleted: number;
+    tasksRemaining: number;
+  };
 };
 
 export type AlgorithmRunSummary = {

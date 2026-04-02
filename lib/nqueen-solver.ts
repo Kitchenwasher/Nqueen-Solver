@@ -1,6 +1,12 @@
 import type { CellCoordinate, SolverAlgorithm, SolverMoveState } from "@/types/chessboard";
 
-export type SolverEventType = "trying-move" | "invalid-move" | "queen-placed" | "backtracking" | "solution-found";
+export type SolverEventType =
+  | "trying-move"
+  | "invalid-move"
+  | "queen-placed"
+  | "backtracking"
+  | "solution-found"
+  | "worker-update";
 
 export type SolverFrame = {
   eventType: SolverEventType;

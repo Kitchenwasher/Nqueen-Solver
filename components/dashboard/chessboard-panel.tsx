@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
+  Cpu,
   CheckCircle2,
   Gauge,
   LayoutGrid,
@@ -24,7 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNQueenSolver } from "@/hooks/use-nqueen-solver";
 import { getAttackedCells, getBoardValidation, getCellKey, getConflictingQueens } from "@/lib/chessboard";
 import { cn } from "@/lib/utils";
-import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate } from "@/types/chessboard";
+import { SUPPORTED_BOARD_SIZES, type BoardSize, type CellCoordinate, type SolverAlgorithm } from "@/types/chessboard";
 import type { AlgorithmPerformanceMap, SolverAnalytics } from "@/types/dashboard";
 
 type ChessboardPanelProps = {
@@ -126,13 +127,16 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
   }, [solver]);
 
   const handleAlgorithmChange = useCallback(
-    (algorithm: "classic" | "optimized") => {
+    (algorithm: SolverAlgorithm) => {
       if (solver.isBusy) {
         return;
       }
 
       solver.reset();
       solver.setAlgorithm(algorithm);
+      if (algorithm === "parallel") {
+        solver.setMode("auto");
+      }
       setValidationOrigin("live");
     },
     [solver]
@@ -200,6 +204,12 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 {validation.status.replace("-", " ")}
               </Badge>
               <Badge className={cn("capitalize", solverStatusClasses)}>{solver.phase}</Badge>
+              {solver.algorithm === "parallel" && (
+                <Badge variant="secondary" className="gap-1.5 border-sky-300/30 bg-sky-500/15 text-sky-100">
+                  <Cpu className="h-3.5 w-3.5" />
+                  Parallel Mode Active
+                </Badge>
+              )}
               <Badge variant="outline">{queens.size} Queens</Badge>
               <Badge variant="outline">{conflictingQueens.size} Conflicts</Badge>
               <Badge variant="outline">{Math.max(attackedCells.size - queens.size, 0)} Attacked Cells</Badge>
@@ -252,6 +262,14 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 >
                   Optimized Solver
                 </Button>
+                <Button
+                  variant={solver.algorithm === "parallel" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleAlgorithmChange("parallel")}
+                  disabled={solver.isBusy}
+                >
+                  Parallel Solver
+                </Button>
               </div>
 
               <p className="text-xs uppercase tracking-[0.13em] text-muted-foreground">Mode</p>
@@ -267,6 +285,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                   variant={solver.mode === "step" ? "default" : "outline"}
                   size="sm"
                   onClick={() => solver.setMode("step")}
+                  disabled={solver.algorithm === "parallel"}
                 >
                   Step-by-step
                 </Button>
@@ -306,7 +325,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 size="sm"
                 className="gap-2"
                 onClick={solver.pause}
-                disabled={solver.mode !== "auto" || solver.phase !== "solving"}
+                disabled={solver.algorithm === "parallel" || solver.mode !== "auto" || solver.phase !== "solving"}
               >
                 <PauseCircle className="h-4 w-4" />
                 Pause
@@ -316,7 +335,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 size="sm"
                 className="gap-2"
                 onClick={solver.resume}
-                disabled={solver.mode !== "auto" || solver.phase !== "paused"}
+                disabled={solver.algorithm === "parallel" || solver.mode !== "auto" || solver.phase !== "paused"}
               >
                 <PlayCircle className="h-4 w-4" />
                 Resume
@@ -326,7 +345,7 @@ export function ChessboardPanel({ className, onAnalyticsChange }: ChessboardPane
                 size="sm"
                 className="gap-2"
                 onClick={solver.stepForward}
-                disabled={solver.mode !== "step" || solver.phase !== "stepping"}
+                disabled={solver.algorithm === "parallel" || solver.mode !== "step" || solver.phase !== "stepping"}
               >
                 <SkipForward className="h-4 w-4" />
                 Next Step

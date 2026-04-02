@@ -1,6 +1,7 @@
 import {
   ActivitySquare,
   Binary,
+  Bot,
   CornerDownLeft,
   Cpu,
   Grid2x2,
@@ -181,6 +182,33 @@ export function InsightsSidebar({ className, analytics, performance }: InsightsS
               </p>
             </article>
           </div>
+
+          {analytics.selectedAlgorithm === "parallel" && analytics.parallel && (
+            <section className={compactCardClass}>
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Parallel Runtime</p>
+                <Bot className="h-3.5 w-3.5 text-primary" />
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Total Workers</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.totalWorkers}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Active Workers</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.activeWorkers}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Tasks Completed</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.tasksCompleted}</p>
+                </div>
+                <div className="rounded-md border border-border/50 bg-background/40 p-2">
+                  <p className="text-muted-foreground">Tasks Remaining</p>
+                  <p className="text-sm font-semibold">{analytics.parallel.tasksRemaining}</p>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className={compactCardClass}>
             <div className="mb-2 flex items-center justify-between">
