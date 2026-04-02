@@ -5,9 +5,11 @@ import { motion } from "framer-motion";
 import {
   BookOpenText,
   BrainCircuit,
+  Cpu,
   GitBranch,
   Layers3,
   Network,
+  Rocket,
   Sigma,
   Sparkles,
   Zap
@@ -81,11 +83,13 @@ const learnSections: LearnSection[] = [
     subtitle: "Reduce checks and reject earlier",
     icon: Zap,
     toneClass: "from-amber-500/15 to-orange-500/10 border-amber-300/25",
-    topicIds: ["optimization"],
-    keywords: ["Bitmasking", "Constant-Time Checks", "Symmetry Reduction"],
+    topicIds: ["optimization", "bitmask-solver", "symmetry-optimization", "branch-ordering", "dead-state-pruning"],
+    keywords: ["Bitmasking", "Symmetry Reduction", "Branch Ordering", "Dead-State Pruning"],
     calloutTitle: "Performance Strategy",
-    calloutText: "Fast solvers avoid repeated scans by tracking columns and diagonals incrementally.",
-    labHint: "Compare Classic vs Bitmask in Benchmark Lab to observe practical speedup."
+    calloutText:
+      "Fast solvers avoid repeated scans using incremental state, smart ordering, and early branch termination.",
+    labHint:
+      "Use Benchmark Lab to compare classic, optimized, and bitmask modes with symmetry and strategy toggles."
   },
   {
     id: "complexity",
@@ -100,16 +104,43 @@ const learnSections: LearnSection[] = [
     labHint: "Stress Test mode is ideal for finding maximum solvable N under time limits."
   },
   {
+    id: "parallel",
+    title: "Parallel + Hardware",
+    subtitle: "Multicore search orchestration",
+    icon: Cpu,
+    toneClass: "from-cyan-500/15 to-blue-500/10 border-cyan-300/25",
+    topicIds: ["parallel-worker-pool", "adaptive-split-depth", "hardware-intelligence"],
+    keywords: ["Worker Pool", "Adaptive Split Depth", "Hardware Recommendation"],
+    calloutTitle: "Parallel Runtime",
+    calloutText:
+      "Top-level branch tasks are distributed to workers, with adaptive split depth balancing overhead and utilization.",
+    labHint: "Use Parallel Solver and Live Worker Monitor to observe task distribution in real time."
+  },
+  {
+    id: "labs",
+    title: "Lab Tooling",
+    subtitle: "Benchmarking and visual analytics",
+    icon: Rocket,
+    toneClass: "from-indigo-500/15 to-cyan-500/10 border-indigo-300/25",
+    topicIds: ["benchmark-lab", "visual-analytics"],
+    keywords: ["Benchmark Lab", "Stress Test", "Search Tree", "Heatmaps", "Insights"],
+    calloutTitle: "Research Workflow",
+    calloutText:
+      "QueenMind supports experiment-driven optimization through metrics, visual traces, and controlled comparisons.",
+    labHint: "Run multi-algorithm benchmarks, then inspect search behavior with tree and heatmap overlays."
+  },
+  {
     id: "csp",
     title: "Constraint Satisfaction Framing",
     subtitle: "Formal CSP interpretation",
     icon: Network,
     toneClass: "from-sky-500/15 to-blue-500/10 border-sky-300/25",
-    topicIds: ["csp", "real-world"],
-    keywords: ["Variables & Domains", "Constraint Propagation", "Decision Systems"],
+    topicIds: ["csp", "constraint-variants", "challenge-generator", "real-world"],
+    keywords: ["Variables & Domains", "Constraint Variants", "Puzzle Generation", "Decision Systems"],
     calloutTitle: "CSP Lens",
     calloutText: "Rows become variables, columns are domains, and conflict rules are constraints.",
-    labHint: "Constraint Editor + Challenge Mode demonstrates CSP-style solving on custom boards."
+    labHint:
+      "Constraint Editor and Challenge Generator turn the board into a CSP sandbox with custom solvability scenarios."
   }
 ];
 

@@ -27,7 +27,7 @@ const sectionItems: NavSectionItem[] = [
   { id: "solver", label: "Solver", icon: Crown, sectionId: "solver-section" },
   { id: "challenges", label: "Challenges", icon: Sparkles, sectionId: "challenges-section" },
   { id: "learn", label: "Learn", icon: BookOpenText, sectionId: "learn-section" },
-  { id: "settings", label: "Settings", icon: Settings2, sectionId: "settings-section" }
+  { id: "settings", label: "Control Guide", icon: Settings2, sectionId: "settings-section" }
 ];
 
 export function NavigationSidebar({ className, activeSection = "solver", onSectionNavigate }: NavigationSidebarProps) {

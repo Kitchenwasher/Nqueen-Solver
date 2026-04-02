@@ -96,8 +96,8 @@ export function DashboardShell() {
           <Button asChild variant="outline" size="sm">
             <Link href="/benchmark">Open Benchmark</Link>
           </Button>
-          <Button variant="outline" size="sm" onClick={() => handleSectionNavigate("insights-section")}>
-            Open Insights
+          <Button asChild variant="outline" size="sm">
+            <Link href="/insights">Open Insights</Link>
           </Button>
         </div>
       }
@@ -123,23 +123,23 @@ export function DashboardShell() {
 
         {!focusMode && (
           <motion.section
-            id="settings-section"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.38, ease: "easeOut", delay: 0.03 }}
-          >
-            <ControlSidebar />
-          </motion.section>
-        )}
-
-        {!focusMode && (
-          <motion.section
             id="learn-section"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.44, ease: "easeOut", delay: 0.06 }}
           >
             <EducationPanel />
+          </motion.section>
+        )}
+
+        {!focusMode && (
+          <motion.section
+            id="settings-section"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.38, ease: "easeOut", delay: 0.03 }}
+          >
+            <ControlSidebar />
           </motion.section>
         )}
       </div>
