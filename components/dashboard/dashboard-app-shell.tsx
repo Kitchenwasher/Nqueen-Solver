@@ -12,7 +12,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useHardwareProfile } from "@/hooks/use-hardware-profile";
 import { cn } from "@/lib/utils";
 
-type DashboardPage = "solver" | "benchmark" | "challenges" | "insights";
+type DashboardPage = "solver" | "benchmark" | "challenges" | "insights" | "about";
 type DashboardSection = "solver" | "challenges" | "learn" | "insights" | "settings";
 
 type DashboardAppShellProps = {

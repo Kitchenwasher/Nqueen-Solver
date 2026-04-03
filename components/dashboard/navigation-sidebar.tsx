@@ -4,7 +4,7 @@ import type { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { BookOpenText, Crown, FlaskConical, Lightbulb, Settings2, Sparkles } from "lucide-react";
+import { BookOpenText, Crown, FlaskConical, Lightbulb, Settings2, Sparkles, UserCircle2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,7 +38,9 @@ export function NavigationSidebar({ className, activeSection = "solver", onSecti
       ? "challenges"
       : pathname?.startsWith("/insights")
         ? "insights"
-      : "solver";
+        : pathname?.startsWith("/about")
+          ? "about"
+          : "solver";
   const isSolverPage = currentPage === "solver";
 
   return (
@@ -145,6 +147,29 @@ export function NavigationSidebar({ className, activeSection = "solver", onSecti
                 >
                   <Lightbulb className="h-4 w-4" />
                   Insights Lab
+                </Button>
+              </div>
+            </Link>
+
+            <Link href="/about" className="block">
+              <div className="relative">
+                {currentPage === "about" && (
+                  <motion.span
+                    layoutId="active-page-indicator"
+                    className="absolute inset-0 rounded-xl bg-primary/16 ring-1 ring-primary/35"
+                    transition={{ type: "spring", stiffness: 360, damping: 32 }}
+                  />
+                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={cn(
+                    "relative z-10 w-full justify-start gap-2 rounded-xl",
+                    currentPage === "about" ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <UserCircle2 className="h-4 w-4" />
+                  About
                 </Button>
               </div>
             </Link>

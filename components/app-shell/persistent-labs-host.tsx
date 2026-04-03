@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { BenchmarkLabShell } from "@/components/benchmark/benchmark-lab-shell";
 import { ChallengeLabShell } from "@/components/challenges/challenge-lab-shell";
+import { AboutPageShell } from "@/components/about/about-page-shell";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { InsightsPageShell } from "@/components/insights/insights-page-shell";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,10 @@ function matchesInsights(pathname: string | null) {
   return pathname?.startsWith("/insights") ?? false;
 }
 
+function matchesAbout(pathname: string | null) {
+  return pathname?.startsWith("/about") ?? false;
+}
+
 export function PersistentLabsHost() {
   const pathname = usePathname();
   const resolvedPathname = pathname ?? "/";
@@ -31,7 +36,8 @@ export function PersistentLabsHost() {
     matchesDashboard(resolvedPathname) ||
     matchesBenchmark(resolvedPathname) ||
     matchesChallenges(resolvedPathname) ||
-    matchesInsights(resolvedPathname);
+    matchesInsights(resolvedPathname) ||
+    matchesAbout(resolvedPathname);
 
   if (!knownLabRoute) {
     return null;
@@ -53,6 +59,10 @@ export function PersistentLabsHost() {
 
       <div className={cn(matchesInsights(resolvedPathname) ? "block" : "hidden")}>
         <InsightsPageShell isVisible={matchesInsights(resolvedPathname)} />
+      </div>
+
+      <div className={cn(matchesAbout(resolvedPathname) ? "block" : "hidden")}>
+        <AboutPageShell isVisible={matchesAbout(resolvedPathname)} />
       </div>
     </div>
   );
