@@ -51,6 +51,10 @@ QueenMind is a production-style N-Queen platform built with Next.js, TypeScript,
   - top action bar with quick actions and live status badges
   - optional right context rail for analytics/context cards
   - responsive mobile navigation sheet
+- Persistent lab runtime behavior:
+  - solver/challenge/benchmark/insights surfaces stay mounted across route switches
+  - hidden pages run with reduced non-critical update cadence to preserve responsiveness
+  - visible page keeps board/control interactions prioritized
 - Solver workspace UX:
   - left collapsible control rail (accordion groups)
   - grouped professional controls (Select/ToggleGroup/RadioGroup/Tooltip/Separator)
@@ -63,6 +67,8 @@ QueenMind is a production-style N-Queen platform built with Next.js, TypeScript,
 - Stress Test mode for limit pushing and runtime profiling
 - Dedicated Challenge Lab page (`/challenges`) for objective, constraints, challenge generation, and advanced controls
 - Dedicated Insights Lab page (`/insights`) for full-width analytics review
+- Insights telemetry delivery:
+  - coalesced/throttled live updates during solving to keep dashboard responsive while still visibly updating
 
 ## Screenshots
 
@@ -132,6 +138,9 @@ npm run lint
 9. Use Stress Test mode to evaluate upper limits.
 10. Use constraint editor/challenge generator for variant puzzles.
 11. Toggle Search Tree / Heatmap for visual exploration insight.
+
+Board size options currently available in solver controls:
+- `4, 6, 8, 10, 12, 14, 16, 18, 20`
 
 Main solver page note:
 - `Solving Objective` and `Parallel Split Depth` are grouped under `Search Strategy`.

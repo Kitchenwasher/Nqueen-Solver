@@ -40,6 +40,7 @@ The architecture is intentionally modular:
 3. State + Control Layer
 - `hooks/use-nqueen-solver.ts`: main solver state machine, metrics aggregation, mode/objective control, solution lifecycle
 - `hooks/use-hardware-profile.ts`: browser capability detection and recommendation memoization
+- `lib/solver-telemetry-store.ts`: persisted telemetry snapshot with selector-based subscription helper for low-overhead insights updates
 
 4. Domain + Solver Layer
 - `lib/nqueen-solver.ts`: classic and optimized recursive engines, solve-first + find-all flows
@@ -77,6 +78,13 @@ Outputs from solver hook:
 
 The board panel is the command surface. The insights sidebar is the analytics surface. `DashboardAppShell` supplies the shared structural frame (left nav, top action bar, transitions, right rail) across both routes.
 
+Recent performance behavior:
+- Solver runtime events are buffered and flushed to UI at controlled cadence (instead of per-event full React commits).
+- Cadence is visibility-aware:
+  - active visible lab: higher refresh frequency
+  - hidden persisted labs: lower background publication frequency
+- Telemetry consumers use selector-style subscription to avoid broad full-snapshot re-renders.
+
 ## UI Flow
 
 1. User changes configuration from the left control rail in `ChessboardPanel` (Accordion groups).
@@ -95,6 +103,7 @@ The board panel is the command surface. The insights sidebar is the analytics su
 9. Benchmark and stress flows run independent orchestrators but reuse the same solver core.
 10. Challenge Lab route reuses `ChessboardPanel` with the advanced accordion group open by default to prioritize constraint/challenge workflows.
 11. Insights Lab route reuses existing analytics wiring and renders `InsightsSidebar` in full-page mode for more space without metric logic changes.
+12. Persistent host (`PersistentLabsHost`) keeps all lab shells mounted and passes route visibility state so hidden pages stay connected but render more efficiently.
 
 ## Composition Strategy
 

@@ -64,7 +64,7 @@ This document maps the frontend component structure and how each major UI piece 
 
 ## `components/dashboard/dashboard-shell.tsx`
 - Purpose: Main dashboard composition controller.
-- Props: none.
+- Props: `isVisible?: boolean`.
 - Responsibilities:
   - uses `DashboardAppShell` for page framing
   - board-first center content
@@ -73,12 +73,13 @@ This document maps the frontend component structure and how each major UI piece 
   - focus mode layout switching
 - Related child components: `DashboardAppShell`, `ChessboardPanel`, `ControlSidebar`, `InsightsSidebar`, `EducationPanel`.
 - Related state: `focusMode`, analytics/performance snapshots passed to insights.
+- Runtime note: passes visibility state to solver surface so hidden persisted pages can reduce non-critical update cadence.
 
 ## Solver UI
 
 ## `components/dashboard/chessboard-panel.tsx`
 - Purpose: Primary solver interaction surface.
-- Props: `className?: string`, `focusMode?: boolean`, `defaultAdvancedOpen?: boolean`, `onAnalyticsChange?: (...) => void`.
+- Props: `className?: string`, `focusMode?: boolean`, `defaultAdvancedOpen?: boolean`, `surface?: "main" | "challenge"`, `isVisible?: boolean`, `onAnalyticsChange?: (...) => void`.
 - Responsibilities:
   - board-first 3-zone composition inside the solver surface
   - left control rail with collapsible Accordion groups
@@ -102,11 +103,12 @@ This document maps the frontend component structure and how each major UI piece 
   - `RadioGroup` (solve mode/challenge difficulty)
   - `Separator` (advanced grouping)
 - Related state/logic: local UI state + `useNQueenSolver` orchestration output.
+- Performance behavior: coalesced analytics publishing + adaptive cadence by visibility and solve activity.
 - Used in: `DashboardShell` center column, `ChallengeLabShell`.
 
 ## `components/challenges/challenge-lab-shell.tsx`
 - Purpose: Dedicated challenge/advanced-controls page shell.
-- Props: none.
+- Props: `isVisible?: boolean`.
 - Responsibilities:
   - Uses `DashboardAppShell` with challenge-focused page metadata.
   - Reuses `ChessboardPanel` with `focusMode` + `defaultAdvancedOpen` + `surface=\"challenge\"` to prioritize constraint/challenge controls.
@@ -115,7 +117,7 @@ This document maps the frontend component structure and how each major UI piece 
 
 ## `components/insights/insights-page-shell.tsx`
 - Purpose: Dedicated insights page shell with expanded analytics layout.
-- Props: none.
+- Props: `isVisible?: boolean`.
 - Responsibilities:
   - Uses `DashboardAppShell` with insights-focused page metadata.
   - Reuses existing analytics wiring from `ChessboardPanel` output.
@@ -147,6 +149,7 @@ This document maps the frontend component structure and how each major UI piece 
   - `metric-card.tsx`
   - `insight-cards.tsx` (`HardwareCard`, `RuntimeStatsCard`, `ComparisonCard`, `WorkerMonitorCard`)
 - Responsibilities: prepares insights surface for scalable card-level composition.
+- Runtime note: rail wrapper is memoized to reduce parent-propagated re-renders during live telemetry updates.
 
 ## `components/dashboard/insights-sidebar.tsx`
 - Purpose: Right analytics rail.
@@ -231,6 +234,8 @@ This document maps the frontend component structure and how each major UI piece 
 - Purpose: reusable shadcn-style primitives for consistent design system and interactions.
 - Additional benchmark-heavy primitives in use:
   - `tabs.tsx`, `toggle-group.tsx`, `select.tsx`, `progress.tsx`, `tooltip.tsx`, `table.tsx`
+- Tooltip note:
+  - `tooltip.tsx` renders content through a portal to avoid clipping inside overflowed analytics/control cards.
 - Recent polish updates:
   - upgraded button press/hover micro-interactions
   - badge motion polish

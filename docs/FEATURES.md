@@ -39,7 +39,7 @@ The UI now includes a final premium polish layer with subtle spotlight/glow effe
 ### Board and Play
 
 - Interactive board with click-to-place queen editing
-- Board sizes: `4, 6, 8, 10, 12, 16`
+- Board sizes: `4, 6, 8, 10, 12, 14, 16, 18, 20`
 - Real-time board validation states:
   - valid
   - invalid
@@ -132,6 +132,7 @@ Live cards include:
 - Reuses the same metrics and calculations as the sidebar.
 - Shows expanded analytics sections (Performance, Hardware, Symmetry/Pruning, Strategy/Algorithm comparison, Parallel telemetry, Advanced Metrics).
 - Board and control panels are intentionally not shown on this page.
+- Live telemetry publishing is throttled/coalesced so updates remain visible during active solving without overloading render throughput.
 
 ## 4. Benchmark Lab (`/benchmark`)
 
@@ -222,3 +223,9 @@ Actions:
 - Detects hardware threads, memory hints, worker support, security context, and capability tier
 - Recommends best solver mode and suggested board range
 - One-click Apply Recommended Solver action in controls
+
+## 8. Runtime Performance Behavior (User-Visible)
+
+- Persistent lab pages remain mounted across route switches.
+- Hidden lab pages continue running active processes in background, with reduced UI update cadence.
+- Visible pages prioritize responsiveness (board/control surface first), while non-critical panels update adaptively.

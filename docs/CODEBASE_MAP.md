@@ -144,6 +144,7 @@ Core architecture is split across:
 - What: Top-level layout for dashboard mode.
 - Why: Orchestrates major dashboard regions and focus mode toggling.
 - Affects: How board, control sidebar, and insights sidebar are composed.
+- Runtime note: passes route visibility to solver surface so hidden persisted pages can lower non-critical update cadence.
 
 ### `components/challenges/challenge-lab-shell.tsx`
 - What: Dedicated challenge page shell using existing solver surface.
@@ -181,11 +182,13 @@ Core architecture is split across:
   - Diagnostics tabs below board (Live Log, Search Tree, Heatmap context)
   - Uses structured shadcn primitives (`Select`, `ToggleGroup`, `RadioGroup`, `Separator`) for clearer control intent
   - Supports `defaultAdvancedOpen` prop so advanced accordion can be expanded by default on challenge-focused surfaces
+  - Uses `isVisible` to adapt telemetry publish cadence for persistent multi-page mode
 
 ### `insights-sidebar.tsx`
 - What: Sectioned analytics dashboard with grouped cards, comparison tabs, progress visuals, and advanced accordion metrics.
 - Why: Turns dense solver telemetry into scan-friendly panels.
 - Affects: Right analytics pane and system-awareness UX; supports full-page mode when mounted in Insights Lab.
+- Runtime note: wrapped via memoized insights rail wrapper to reduce re-renders from parent updates.
 
 ### `hardware-info-card.tsx`
 - What: Hardware capability + recommendation card.
@@ -246,6 +249,7 @@ Core architecture is split across:
 - What: `Chessboard` wrapper with stable solver-facing prop surface.
 - Why: isolates board presentation from solver panel internals.
 - Affects: center board zone composition in `chessboard-panel.tsx`.
+- Runtime note: memoized wrapper to avoid avoidable parent-triggered board rerenders.
 
 ### `solver-controls.tsx`
 - What: left-rail control container wrapper.
@@ -479,6 +483,7 @@ Core architecture is split across:
 - What: Board-size constants and domain enums (algorithm, strategy, mode, objective, heatmap types).
 - Why: Canonical vocabulary across UI + solver logic.
 - Affects: Type-safe config wiring across the app.
+- Current supported sizes: `4, 6, 8, 10, 12, 14, 16, 18, 20`.
 
 ### `types/dashboard.ts`
 - What: Analytics and performance map models for insights rendering.
@@ -498,7 +503,8 @@ There is no Redux/Zustand global store. State is managed through React state/hoo
 
 - `useNQueenSolver` = primary runtime state container for solving and analytics.
 - Local UI state lives inside `chessboard-panel.tsx` (constraints, challenge controls, visualizer toggles).
-- `dashboard-shell.tsx` holds top-level `analytics/performance/strategyPerformance` for passing into insights.
+- `lib/solver-telemetry-store.ts` holds persisted analytics snapshots shared between solver shell and insights shells.
+- Insights shells consume telemetry via selector-style subscription helper to reduce broad rerenders.
 - `useHardwareProfile` handles hardware capability state.
 
 ## Styles Map

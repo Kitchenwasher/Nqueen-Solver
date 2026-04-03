@@ -2,6 +2,27 @@
 
 All notable changes to QueenMind are documented in this file.
 
+## [Current State] - 2026-04-03
+
+### Improved
+
+- Performance and persistence tuning across persistent labs:
+  - throttled/coalesced runtime-to-UI updates during active solving
+  - adaptive update cadence for visible vs hidden lab surfaces
+  - selector-style telemetry subscriptions for reduced re-render scope in insights surfaces
+  - additional memo boundaries on heavy insights/solver presentation wrappers
+- Insights live update responsiveness:
+  - insights now publish continuous telemetry during solves (without UI starvation from repeated timer resets)
+- Tooltip rendering reliability:
+  - moved tooltip content to portal rendering to prevent clipped/bleeding hint text inside overflowed cards
+- Expanded board-size support surfaced in controls:
+  - `4, 6, 8, 10, 12, 14, 16, 18, 20`
+
+### Notes
+
+- Solver algorithms and solving logic were not changed in this update.
+- Persistence behavior remains enabled and backward-compatible; only update cadence and render flow were optimized.
+
 ## [Current State] - 2026-04-02
 
 ### Added
