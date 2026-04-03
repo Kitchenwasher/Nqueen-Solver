@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Crown } from "lucide-react";
 
@@ -17,7 +18,7 @@ type ChessCellProps = {
   heatmapCount?: number;
   isSolvingActive?: boolean;
   disabled?: boolean;
-  onClick: () => void;
+  onClick: (row: number, col: number) => void;
 };
 
 function getHeatmapOverlayClass(mode: HeatmapMode) {
@@ -33,7 +34,7 @@ function getHeatmapOverlayClass(mode: HeatmapMode) {
   return "";
 }
 
-export function ChessCell({
+function ChessCellComponent({
   row,
   col,
   isDarkSquare,
@@ -74,7 +75,7 @@ export function ChessCell({
       whileTap={{ scale: 0.96 }}
       transition={{ type: "spring", stiffness: 250, damping: 20 }}
       aria-label={`Row ${row + 1} Column ${col + 1}`}
-      onClick={onClick}
+      onClick={() => onClick(row, col)}
       disabled={disabled}
       className={cn(
         "group relative flex aspect-square items-center justify-center overflow-hidden rounded-[10px] border transition-all duration-250 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-95",
@@ -165,3 +166,5 @@ export function ChessCell({
     </motion.button>
   );
 }
+
+export const ChessCell = memo(ChessCellComponent);

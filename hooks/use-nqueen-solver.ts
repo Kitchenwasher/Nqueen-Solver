@@ -60,6 +60,7 @@ export type ParallelWorkerLiveState = {
 
 const DEFAULT_SPEED_MS = 130;
 const MAX_LOGS = 200;
+const UI_FLUSH_INTERVAL_MS = 16;
 const DEFAULT_SYMMETRY_STATS: SymmetryStats = {
   active: false,
   rootBranchesTotal: 0,
@@ -73,6 +74,35 @@ const DEFAULT_PRUNING_STATS: PruningStats = {
   branchesPruned: 0,
   deadStatesDetected: 0,
   estimatedWorkSaved: 0
+};
+
+type FrameSnapshot = {
+  queensByRow: number[];
+  activeCell: CellCoordinate | null;
+  moveState: SolverMoveState;
+  eventType: SolverEventType;
+  message: string;
+  step: number;
+  recursiveCalls: number;
+  backtracks: number;
+  solutionsFound: number;
+  searchDepth: number;
+};
+
+type ParallelProgressSnapshot = {
+  totalWorkers: number;
+  activeWorkers: number;
+  tasksCompleted: number;
+  tasksTotal: number;
+  splitDepthUsed: number;
+  loadBalancingEffectiveness: number;
+  recursiveCalls: number;
+  backtracks: number;
+  solutionsFound: number;
+  searchDepth: number;
+  latestRow: number | null;
+  latestCol: number | null;
+  capped: boolean;
 };
 
 /**
@@ -189,6 +219,11 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   const stepWaiterRef = useRef<null | (() => void)>(null);
   const startedAtRef = useRef<number | null>(null);
   const logStepRef = useRef(0);
+  const frameSnapshotRef = useRef<FrameSnapshot | null>(null);
+  const frameFlushHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const parallelProgressRef = useRef<ParallelProgressSnapshot | null>(null);
+  const parallelFlushHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const allSolutionsProgressAtRef = useRef(0);
 
   const isBusy = useMemo(() => ["solving", "paused", "stepping", "enumerating"].includes(phase), [phase]);
   const totalStoredSolutions = storedSolutions.length;
@@ -221,6 +256,107 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     },
     []
   );
+
+  const flushFrameSnapshot = useCallback(() => {
+    const snapshot = frameSnapshotRef.current;
+    if (!snapshot) {
+      return;
+    }
+
+    frameSnapshotRef.current = null;
+    setQueenCells(queensByRowToKeys(snapshot.queensByRow));
+    setActiveCell(snapshot.activeCell);
+    setExploredCell(snapshot.activeCell);
+    setMoveState(snapshot.moveState);
+    setRecursiveCalls(snapshot.recursiveCalls);
+    setBacktracks(snapshot.backtracks);
+    setSolutionsFound(snapshot.solutionsFound);
+    setCurrentRow(snapshot.activeCell ? snapshot.activeCell.row + 1 : null);
+    setCurrentColumn(snapshot.activeCell ? snapshot.activeCell.col + 1 : null);
+    setSearchDepth(snapshot.searchDepth);
+    if (startedAtRef.current) {
+      setElapsedMs(Date.now() - startedAtRef.current);
+    }
+    setLogs((previous) => {
+      const next: SolverLogEntry = {
+        id: `${runIdRef.current}-${snapshot.step}`,
+        step: snapshot.step,
+        eventType: snapshot.eventType,
+        message: snapshot.message,
+        row: snapshot.activeCell?.row ?? null,
+        col: snapshot.activeCell?.col ?? null
+      };
+      return [next, ...previous].slice(0, MAX_LOGS);
+    });
+  }, [setActiveCell, setQueenCells]);
+
+  const scheduleFrameFlush = useCallback(() => {
+    if (frameFlushHandleRef.current) {
+      return;
+    }
+
+    frameFlushHandleRef.current = setTimeout(() => {
+      frameFlushHandleRef.current = null;
+      flushFrameSnapshot();
+    }, UI_FLUSH_INTERVAL_MS);
+  }, [flushFrameSnapshot]);
+
+  const flushParallelProgress = useCallback(() => {
+    const progress = parallelProgressRef.current;
+    if (!progress) {
+      return;
+    }
+
+    parallelProgressRef.current = null;
+    setParallelTotalWorkers(progress.totalWorkers);
+    setParallelActiveWorkers(progress.activeWorkers);
+    setParallelTasksCompleted(progress.tasksCompleted);
+    setParallelTasksTotal(progress.tasksTotal);
+    setParallelWorkerStates((previous) => {
+      if (progress.totalWorkers <= 0) {
+        return previous;
+      }
+      const byId = new Map(previous.map((entry) => [entry.workerId, entry]));
+      const next: ParallelWorkerLiveState[] = [];
+      for (let workerId = 1; workerId <= progress.totalWorkers; workerId += 1) {
+        next.push(
+          byId.get(workerId) ?? {
+            workerId,
+            status: "idle",
+            currentTask: null,
+            taskStartedAt: null,
+            taskDurationMs: 0,
+            solutionsFound: 0
+          }
+        );
+      }
+      return next;
+    });
+    setParallelSplitDepthUsed(progress.splitDepthUsed);
+    setParallelLoadBalancingEffectiveness(progress.loadBalancingEffectiveness);
+    setRecursiveCalls(progress.recursiveCalls);
+    setBacktracks(progress.backtracks);
+    setSolutionsFound(progress.solutionsFound);
+    setSearchDepth(progress.searchDepth);
+    setCurrentRow(progress.latestRow !== null ? progress.latestRow + 1 : null);
+    setCurrentColumn(progress.latestCol !== null ? progress.latestCol + 1 : null);
+    setAllSolutionsCapped(progress.capped);
+
+    if (startedAtRef.current) {
+      setElapsedMs(Date.now() - startedAtRef.current);
+    }
+  }, []);
+
+  const scheduleParallelProgressFlush = useCallback(() => {
+    if (parallelFlushHandleRef.current) {
+      return;
+    }
+
+    parallelFlushHandleRef.current = setTimeout(() => {
+      parallelFlushHandleRef.current = null;
+      flushParallelProgress();
+    }, UI_FLUSH_INTERVAL_MS);
+  }, [flushParallelProgress]);
 
   const releaseStepWaiter = useCallback(() => {
     if (stepWaiterRef.current) {
@@ -264,6 +400,17 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setFirstSolutionPath(null);
     setSymmetryStats(DEFAULT_SYMMETRY_STATS);
     setPruningStats(DEFAULT_PRUNING_STATS);
+    frameSnapshotRef.current = null;
+    parallelProgressRef.current = null;
+    if (frameFlushHandleRef.current) {
+      clearTimeout(frameFlushHandleRef.current);
+      frameFlushHandleRef.current = null;
+    }
+    if (parallelFlushHandleRef.current) {
+      clearTimeout(parallelFlushHandleRef.current);
+      parallelFlushHandleRef.current = null;
+    }
+    allSolutionsProgressAtRef.current = 0;
     startedAtRef.current = null;
     logStepRef.current = 0;
   }, []);
@@ -450,49 +597,14 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
             return;
           }
 
-          setParallelTotalWorkers(progress.totalWorkers);
-          setParallelActiveWorkers(progress.activeWorkers);
-          setParallelTasksCompleted(progress.tasksCompleted);
-          setParallelTasksTotal(progress.tasksTotal);
-          setParallelWorkerStates((previous) => {
-            if (progress.totalWorkers <= 0) {
-              return previous;
-            }
-            const byId = new Map(previous.map((entry) => [entry.workerId, entry]));
-            const next: ParallelWorkerLiveState[] = [];
-            for (let workerId = 1; workerId <= progress.totalWorkers; workerId += 1) {
-              next.push(
-                byId.get(workerId) ?? {
-                  workerId,
-                  status: "idle",
-                  currentTask: null,
-                  taskStartedAt: null,
-                  taskDurationMs: 0,
-                  solutionsFound: 0
-                }
-              );
-            }
-            return next;
-          });
-          setParallelSplitDepthUsed(progress.splitDepthUsed);
-          setParallelLoadBalancingEffectiveness(progress.loadBalancingEffectiveness);
-          setRecursiveCalls(progress.recursiveCalls);
-          setBacktracks(progress.backtracks);
-          setSolutionsFound(progress.solutionsFound);
-          setSearchDepth(progress.searchDepth);
-          setCurrentRow(progress.latestRow !== null ? progress.latestRow + 1 : null);
-          setCurrentColumn(progress.latestCol !== null ? progress.latestCol + 1 : null);
-          setAllSolutionsCapped(progress.capped);
-
-          if (startedAtRef.current) {
-            setElapsedMs(Date.now() - startedAtRef.current);
-          }
+          parallelProgressRef.current = progress;
+          scheduleParallelProgressFlush();
         }
       });
 
       return result;
     },
-    [appendLog, boardSize, manualSplitDepth, searchStrategy, splitDepthMode, symmetryEnabled]
+    [appendLog, boardSize, manualSplitDepth, scheduleParallelProgressFlush, searchStrategy, splitDepthMode, symmetryEnabled]
   );
 
   /**
@@ -536,6 +648,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
 
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, false, currentRunId);
+      flushParallelProgress();
       if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
         return;
       }
@@ -621,33 +734,23 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
           return;
         }
 
-        setQueenCells(queensByRowToKeys(queensByRow));
-        setActiveCell(activeCell);
-        setExploredCell(activeCell);
-        setMoveState(currentMoveState);
-        setRecursiveCalls(frameRecursiveCalls);
-        setBacktracks(frameBacktracks);
-        setSolutionsFound(frameSolutionsFound);
-        setCurrentRow(activeCell ? activeCell.row + 1 : null);
-        setCurrentColumn(activeCell ? activeCell.col + 1 : null);
-        setSearchDepth(frameSearchDepth);
-        if (startedAtRef.current) {
-          setElapsedMs(Date.now() - startedAtRef.current);
-        }
-        setLogs((previous) => {
-          const next: SolverLogEntry = {
-            id: `${currentRunId}-${step}`,
-            step,
-            eventType,
-            message,
-            row: activeCell?.row ?? null,
-            col: activeCell?.col ?? null
-          };
-          return [next, ...previous].slice(0, MAX_LOGS);
-        });
+        frameSnapshotRef.current = {
+          queensByRow,
+          activeCell,
+          moveState: currentMoveState,
+          eventType,
+          message,
+          step,
+          recursiveCalls: frameRecursiveCalls,
+          backtracks: frameBacktracks,
+          solutionsFound: frameSolutionsFound,
+          searchDepth: frameSearchDepth
+        };
+        scheduleFrameFlush();
       }
     });
 
+    flushFrameSnapshot();
     if (runIdRef.current !== currentRunId || stopRef.current) {
       return;
     }
@@ -684,6 +787,8 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     clearRuntimeMetrics,
     clearStoredSolutions,
     clearVisualState,
+    flushFrameSnapshot,
+    flushParallelProgress,
     isBusy,
     releaseStepWaiter,
     runParallelMode,
@@ -692,6 +797,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     setActiveCell,
     setQueenCells,
     searchStrategy,
+    scheduleFrameFlush,
     symmetryEnabled,
     constraints,
     hasConstraints
@@ -736,6 +842,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
 
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, true, currentRunId);
+      flushParallelProgress();
       if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
         return;
       }
@@ -810,6 +917,12 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
           return;
         }
 
+        const now = Date.now();
+        if (now - allSolutionsProgressAtRef.current < UI_FLUSH_INTERVAL_MS) {
+          return;
+        }
+        allSolutionsProgressAtRef.current = now;
+
         setRecursiveCalls(calls);
         setBacktracks(backtrackCount);
         setSolutionsFound(found);
@@ -877,6 +990,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     clearRuntimeMetrics,
     clearStoredSolutions,
     clearVisualState,
+    flushParallelProgress,
     isBusy,
     releaseStepWaiter,
     runParallelMode,
@@ -996,6 +1110,16 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     return () => {
       stopRef.current = true;
       pauseRef.current = false;
+      if (frameFlushHandleRef.current) {
+        clearTimeout(frameFlushHandleRef.current);
+        frameFlushHandleRef.current = null;
+      }
+      if (parallelFlushHandleRef.current) {
+        clearTimeout(parallelFlushHandleRef.current);
+        parallelFlushHandleRef.current = null;
+      }
+      frameSnapshotRef.current = null;
+      parallelProgressRef.current = null;
       releaseStepWaiter();
       runIdRef.current += 1;
     };

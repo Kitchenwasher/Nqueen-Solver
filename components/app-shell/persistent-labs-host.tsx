@@ -26,8 +26,12 @@ function matchesInsights(pathname: string | null) {
 
 export function PersistentLabsHost() {
   const pathname = usePathname();
+  const resolvedPathname = pathname ?? "/";
   const knownLabRoute =
-    matchesDashboard(pathname) || matchesBenchmark(pathname) || matchesChallenges(pathname) || matchesInsights(pathname);
+    matchesDashboard(resolvedPathname) ||
+    matchesBenchmark(resolvedPathname) ||
+    matchesChallenges(resolvedPathname) ||
+    matchesInsights(resolvedPathname);
 
   if (!knownLabRoute) {
     return null;
@@ -35,22 +39,21 @@ export function PersistentLabsHost() {
 
   return (
     <div className="min-h-screen">
-      <div className={cn(matchesDashboard(pathname) ? "block" : "hidden")}>
+      <div className={cn(matchesDashboard(resolvedPathname) ? "block" : "hidden")}>
         <DashboardShell />
       </div>
 
-      <div className={cn(matchesBenchmark(pathname) ? "block" : "hidden")}>
+      <div className={cn(matchesBenchmark(resolvedPathname) ? "block" : "hidden")}>
         <BenchmarkLabShell />
       </div>
 
-      <div className={cn(matchesChallenges(pathname) ? "block" : "hidden")}>
+      <div className={cn(matchesChallenges(resolvedPathname) ? "block" : "hidden")}>
         <ChallengeLabShell />
       </div>
 
-      <div className={cn(matchesInsights(pathname) ? "block" : "hidden")}>
+      <div className={cn(matchesInsights(resolvedPathname) ? "block" : "hidden")}>
         <InsightsPageShell />
       </div>
     </div>
   );
 }
-

@@ -49,6 +49,7 @@ const defaultState: SolverTelemetryState = {
 };
 
 let state: SolverTelemetryState = defaultState;
+let persistTimer: ReturnType<typeof setTimeout> | null = null;
 
 const listeners = new Set<() => void>();
 
@@ -79,11 +80,20 @@ function persistState(next: SolverTelemetryState) {
     return;
   }
 
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  } catch {
-    // Ignore persistence failures and keep in-memory telemetry.
+  if (persistTimer) {
+    clearTimeout(persistTimer);
+    persistTimer = null;
   }
+
+  persistTimer = setTimeout(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // Ignore persistence failures and keep in-memory telemetry.
+    } finally {
+      persistTimer = null;
+    }
+  }, 200);
 }
 
 export function initializeSolverTelemetryStore() {
@@ -105,10 +115,17 @@ export function subscribeSolverTelemetry(listener: () => void) {
 }
 
 export function setSolverTelemetrySnapshot(next: SolverTelemetryState) {
+  if (
+    state.analytics === next.analytics &&
+    state.performance === next.performance &&
+    state.strategyPerformance === next.strategyPerformance
+  ) {
+    return;
+  }
+
   state = next;
   persistState(next);
   for (const listener of listeners) {
     listener();
   }
 }
-

@@ -103,6 +103,8 @@ export function ChessboardPanel({
   const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("off");
   const hydratedRef = useRef(false);
+  const workspaceSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const analyticsPublishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const solver = useNQueenSolver({
     boardSize,
@@ -140,6 +142,17 @@ export function ChessboardPanel({
    * Parallel mode intentionally bypasses these maps for accuracy.
    */
   const heatmaps = useMemo(() => {
+    if (!heatmapSupported || heatmapMode === "off") {
+      return {
+        exploration: {},
+        conflict: {},
+        solutionFrequency: {},
+        maxExploration: 0,
+        maxConflict: 0,
+        maxSolutionFrequency: 0
+      };
+    }
+
     const exploration: Record<string, number> = {};
     const conflict: Record<string, number> = {};
     const solutionFrequency: Record<string, number> = {};
@@ -179,7 +192,7 @@ export function ChessboardPanel({
       maxConflict,
       maxSolutionFrequency
     };
-  }, [solver.logs, solver.storedSolutions]);
+  }, [heatmapMode, heatmapSupported, solver.logs, solver.storedSolutions]);
 
   const activeHeatmapCounts = useMemo(() => {
     if (heatmapMode === "exploration") {
@@ -245,29 +258,45 @@ export function ChessboardPanel({
       return;
     }
 
-    saveSolverWorkspaceSnapshot({
-      version: 1,
-      boardSize,
-      queenCells,
-      prePlacedQueenCells,
-      blockedCells,
-      forbiddenCells,
-      constraintEditMode,
-      challengeMode,
-      challengeDifficulty,
-      activeChallenge,
-      challengeStatus,
-      isSearchTreeVisible,
-      heatmapMode,
-      algorithm: solver.algorithm,
-      mode: solver.mode,
-      speedMs: solver.speedMs,
-      searchStrategy: solver.searchStrategy,
-      solvingObjective: solver.solvingObjective,
-      splitDepthMode: solver.splitDepthMode,
-      manualSplitDepth: solver.manualSplitDepth,
-      symmetryEnabled: solver.symmetryEnabled
-    });
+    if (workspaceSaveTimerRef.current) {
+      clearTimeout(workspaceSaveTimerRef.current);
+      workspaceSaveTimerRef.current = null;
+    }
+
+    const delay = solver.isBusy ? 600 : 150;
+    workspaceSaveTimerRef.current = setTimeout(() => {
+      saveSolverWorkspaceSnapshot({
+        version: 1,
+        boardSize,
+        queenCells,
+        prePlacedQueenCells,
+        blockedCells,
+        forbiddenCells,
+        constraintEditMode,
+        challengeMode,
+        challengeDifficulty,
+        activeChallenge,
+        challengeStatus,
+        isSearchTreeVisible,
+        heatmapMode,
+        algorithm: solver.algorithm,
+        mode: solver.mode,
+        speedMs: solver.speedMs,
+        searchStrategy: solver.searchStrategy,
+        solvingObjective: solver.solvingObjective,
+        splitDepthMode: solver.splitDepthMode,
+        manualSplitDepth: solver.manualSplitDepth,
+        symmetryEnabled: solver.symmetryEnabled
+      });
+      workspaceSaveTimerRef.current = null;
+    }, delay);
+
+    return () => {
+      if (workspaceSaveTimerRef.current) {
+        clearTimeout(workspaceSaveTimerRef.current);
+        workspaceSaveTimerRef.current = null;
+      }
+    };
   }, [
     activeChallenge,
     blockedCells,
@@ -288,11 +317,31 @@ export function ChessboardPanel({
     solver.solvingObjective,
     solver.speedMs,
     solver.splitDepthMode,
-    solver.symmetryEnabled
+    solver.symmetryEnabled,
+    solver.isBusy
   ]);
 
   useEffect(() => {
-    onAnalyticsChange?.(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);
+    if (!onAnalyticsChange) {
+      return;
+    }
+
+    if (analyticsPublishTimerRef.current) {
+      clearTimeout(analyticsPublishTimerRef.current);
+      analyticsPublishTimerRef.current = null;
+    }
+
+    analyticsPublishTimerRef.current = setTimeout(() => {
+      onAnalyticsChange(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);
+      analyticsPublishTimerRef.current = null;
+    }, 80);
+
+    return () => {
+      if (analyticsPublishTimerRef.current) {
+        clearTimeout(analyticsPublishTimerRef.current);
+        analyticsPublishTimerRef.current = null;
+      }
+    };
   }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy]);
 
   const handleBoardSizeChange = useCallback(

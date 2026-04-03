@@ -1,3 +1,4 @@
+import { memo, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 
 import { ChessCell } from "@/components/chessboard/chess-cell";
@@ -108,7 +109,7 @@ function getCellState(
   return "empty";
 }
 
-export function Chessboard({
+function ChessboardComponent({
   boardSize,
   focusMode = false,
   queens,
@@ -127,11 +128,73 @@ export function Chessboard({
   isInteractionLocked = false,
   onCellClick
 }: ChessboardProps) {
-  const boardMaxWidth = getBoardMaxWidth(boardSize, focusMode);
+  const boardMaxWidth = useMemo(() => getBoardMaxWidth(boardSize, focusMode), [boardSize, focusMode]);
   const gridGapClass = boardSize >= 12 ? "gap-1 sm:gap-1.5" : "gap-1.5 sm:gap-2";
   const activeAxisCell = exploredCell ?? activeCell;
   const activeRow = activeAxisCell?.row ?? null;
   const activeCol = activeAxisCell?.col ?? null;
+  const handleCellClick = useCallback(
+    (row: number, col: number) => {
+      onCellClick({ row, col });
+    },
+    [onCellClick]
+  );
+
+  const cells = useMemo(() => {
+    return Array.from({ length: boardSize * boardSize }).map((_, index) => {
+      const row = Math.floor(index / boardSize);
+      const col = index % boardSize;
+      const key = getCellKey(row, col);
+      const isDarkSquare = (row + col) % 2 === 1;
+      const isActive = activeCell?.row === row && activeCell?.col === col;
+      const isExploredCell = exploredCell?.row === row && exploredCell?.col === col;
+      const state = getCellState(
+        key,
+        isExploredCell,
+        exploredState,
+        queens,
+        prePlacedQueens,
+        blockedCells,
+        forbiddenCells,
+        attackedCells,
+        conflictingQueens
+      );
+      const heatmapCount = heatmapCounts[key] ?? 0;
+      const heatmapLevel = heatmapMax > 0 ? Math.min(heatmapCount / heatmapMax, 1) : 0;
+      const isActiveRow = activeRow !== null && activeRow === row;
+      const isActiveCol = activeCol !== null && activeCol === col;
+
+      return {
+        key,
+        row,
+        col,
+        state,
+        isDarkSquare,
+        isActive,
+        isActiveRow,
+        isActiveCol,
+        heatmapCount,
+        heatmapLevel
+      };
+    });
+  }, [
+    activeCell?.col,
+    activeCell?.row,
+    activeCol,
+    activeRow,
+    attackedCells,
+    blockedCells,
+    boardSize,
+    conflictingQueens,
+    exploredCell?.col,
+    exploredCell?.row,
+    exploredState,
+    forbiddenCells,
+    heatmapCounts,
+    heatmapMax,
+    prePlacedQueens,
+    queens
+  ]);
 
   return (
     <div className="mx-auto w-full">
@@ -157,50 +220,28 @@ export function Chessboard({
           className={cn("relative grid", gridGapClass)}
           style={{ gridTemplateColumns: `repeat(${boardSize}, minmax(0, 1fr))` }}
         >
-          {Array.from({ length: boardSize * boardSize }).map((_, index) => {
-            const row = Math.floor(index / boardSize);
-            const col = index % boardSize;
-            const key = getCellKey(row, col);
-            const isActive = activeCell?.row === row && activeCell?.col === col;
-            const isExploredCell = exploredCell?.row === row && exploredCell?.col === col;
-            const isDarkSquare = (row + col) % 2 === 1;
-            const state = getCellState(
-              key,
-              isExploredCell,
-              exploredState,
-              queens,
-              prePlacedQueens,
-              blockedCells,
-              forbiddenCells,
-              attackedCells,
-              conflictingQueens
-            );
-            const heatmapCount = heatmapCounts[key] ?? 0;
-            const heatmapLevel = heatmapMax > 0 ? Math.min(heatmapCount / heatmapMax, 1) : 0;
-            const isActiveRow = activeRow !== null && activeRow === row;
-            const isActiveCol = activeCol !== null && activeCol === col;
-
-            return (
-              <ChessCell
-                key={key}
-                row={row}
-                col={col}
-                state={state}
-                isActive={isActive}
-                isDarkSquare={isDarkSquare}
-                isActiveRow={isActiveRow}
-                isActiveCol={isActiveCol}
-                heatmapMode={heatmapMode}
-                heatmapLevel={heatmapLevel}
-                heatmapCount={heatmapCount}
-                disabled={isInteractionLocked}
-                isSolvingActive={isSolvingActive}
-                onClick={() => onCellClick({ row, col })}
-              />
-            );
-          })}
+          {cells.map((cell) => (
+            <ChessCell
+              key={cell.key}
+              row={cell.row}
+              col={cell.col}
+              state={cell.state}
+              isActive={cell.isActive}
+              isDarkSquare={cell.isDarkSquare}
+              isActiveRow={cell.isActiveRow}
+              isActiveCol={cell.isActiveCol}
+              heatmapMode={heatmapMode}
+              heatmapLevel={cell.heatmapLevel}
+              heatmapCount={cell.heatmapCount}
+              disabled={isInteractionLocked}
+              isSolvingActive={isSolvingActive}
+              onClick={handleCellClick}
+            />
+          ))}
         </div>
       </motion.div>
     </div>
   );
 }
+
+export const Chessboard = memo(ChessboardComponent);

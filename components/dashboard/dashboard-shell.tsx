@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 
@@ -65,6 +65,12 @@ export function DashboardShell() {
   const [strategyPerformance, setStrategyPerformance] = useState<StrategyPerformanceMap>({});
   const [focusMode, setFocusMode] = useState(false);
   const [activeSection, setActiveSection] = useState<DashboardSection>("solver");
+  const analyticsCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingTelemetryRef = useRef<{
+    analytics: SolverAnalytics;
+    performance: AlgorithmPerformanceMap;
+    strategyPerformance: StrategyPerformanceMap;
+  } | null>(null);
 
   useEffect(() => {
     initializeSolverTelemetryStore();
@@ -74,20 +80,43 @@ export function DashboardShell() {
     setStrategyPerformance(snapshot.strategyPerformance);
   }, []);
 
-  const handleAnalyticsChange = (
+  const handleAnalyticsChange = useCallback((
     nextAnalytics: SolverAnalytics,
     nextPerformance: AlgorithmPerformanceMap,
     nextStrategyPerformance: StrategyPerformanceMap
   ) => {
-    setAnalytics(nextAnalytics);
-    setPerformance(nextPerformance);
-    setStrategyPerformance(nextStrategyPerformance);
-    setSolverTelemetrySnapshot({
+    pendingTelemetryRef.current = {
       analytics: nextAnalytics,
       performance: nextPerformance,
       strategyPerformance: nextStrategyPerformance
-    });
-  };
+    };
+
+    if (analyticsCommitTimerRef.current) {
+      return;
+    }
+
+    analyticsCommitTimerRef.current = setTimeout(() => {
+      analyticsCommitTimerRef.current = null;
+      const pending = pendingTelemetryRef.current;
+      if (!pending) {
+        return;
+      }
+
+      setAnalytics(pending.analytics);
+      setPerformance(pending.performance);
+      setStrategyPerformance(pending.strategyPerformance);
+      setSolverTelemetrySnapshot(pending);
+    }, 80);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (analyticsCommitTimerRef.current) {
+        clearTimeout(analyticsCommitTimerRef.current);
+        analyticsCommitTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const handleSectionNavigate = (sectionId: string) => {
     const mapped = sectionIdToKey[sectionId as keyof typeof sectionIdToKey];
