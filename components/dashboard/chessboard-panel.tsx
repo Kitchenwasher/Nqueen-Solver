@@ -105,6 +105,11 @@ export function ChessboardPanel({
   const hydratedRef = useRef(false);
   const workspaceSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analyticsPublishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAnalyticsRef = useRef<{
+    analytics: SolverAnalytics;
+    performance: AlgorithmPerformanceMap;
+    strategyPerformance: StrategyPerformanceMap;
+  } | null>(null);
 
   const solver = useNQueenSolver({
     boardSize,
@@ -326,23 +331,37 @@ export function ChessboardPanel({
       return;
     }
 
+    pendingAnalyticsRef.current = {
+      analytics: solver.analytics,
+      performance: solver.performanceByAlgorithm,
+      strategyPerformance: solver.performanceByStrategy
+    };
+
     if (analyticsPublishTimerRef.current) {
-      clearTimeout(analyticsPublishTimerRef.current);
-      analyticsPublishTimerRef.current = null;
+      return;
     }
 
     analyticsPublishTimerRef.current = setTimeout(() => {
-      onAnalyticsChange(solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy);
+      const pending = pendingAnalyticsRef.current;
+      if (!pending) {
+        analyticsPublishTimerRef.current = null;
+        return;
+      }
+      onAnalyticsChange(pending.analytics, pending.performance, pending.strategyPerformance);
+      pendingAnalyticsRef.current = null;
       analyticsPublishTimerRef.current = null;
     }, 80);
+  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy]);
 
+  useEffect(() => {
     return () => {
       if (analyticsPublishTimerRef.current) {
         clearTimeout(analyticsPublishTimerRef.current);
         analyticsPublishTimerRef.current = null;
       }
+      pendingAnalyticsRef.current = null;
     };
-  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy]);
+  }, []);
 
   const handleBoardSizeChange = useCallback(
     (value: BoardSize) => {
