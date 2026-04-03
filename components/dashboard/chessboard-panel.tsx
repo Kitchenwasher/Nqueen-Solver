@@ -577,7 +577,7 @@ export function ChessboardPanel({
               className={cn(
                 "items-center lg:justify-end",
                 isChallengeLab &&
-                  "ml-auto w-full max-w-full justify-end flex-nowrap overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:shrink-0"
+                  "ml-auto w-full max-w-full justify-start pb-1 lg:justify-end"
               )}
             >
               <Badge className={cn("gap-1.5 capitalize", statusBadgeClasses)}>
