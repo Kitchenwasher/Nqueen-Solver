@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { ComponentType, ReactNode } from "react";
 import { motion } from "framer-motion";
 import {
@@ -336,8 +337,14 @@ export function AboutPageShell({ isVisible: _isVisible = true }: AboutPageShellP
                       transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
                     />
                     <div className="relative flex h-full min-h-[220px] items-center justify-center">
-                      <div className="grid h-28 w-28 place-items-center rounded-[1.3rem] border border-primary/40 bg-background/60 text-3xl font-semibold text-primary shadow-[0_0_0_1px_rgba(82,255,232,0.24),0_18px_34px_rgba(7,14,40,0.58)]">
-                        {aboutPageContent.creatorProfile.avatarPlaceholderLabel}
+                      <div className="relative h-28 w-28 overflow-hidden rounded-[1.3rem] border border-primary/40 bg-background/60 shadow-[0_0_0_1px_rgba(82,255,232,0.24),0_18px_34px_rgba(7,14,40,0.58)]">
+                        <Image
+                          src="/images/queenmind-profile.svg"
+                          alt="QueenMind creator profile visual"
+                          fill
+                          sizes="112px"
+                          className="object-cover"
+                        />
                       </div>
                     </div>
                   </div>

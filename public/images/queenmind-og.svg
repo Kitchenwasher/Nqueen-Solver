@@ -1,0 +1,30 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1200" height="630" fill="#070B1A" />
+  <rect width="1200" height="630" fill="url(#bgGlow)" />
+  <g opacity="0.32">
+    <path d="M96 128H1104V502H96V128Z" fill="url(#panel)" stroke="#2E3653" />
+    <path d="M166 198H1034V432H166V198Z" fill="#0C1225" stroke="#303B60" />
+    <path d="M166 276H1034" stroke="#243152" />
+    <path d="M384 198V432M600 198V432M816 198V432" stroke="#243152" />
+  </g>
+  <g opacity="0.95">
+    <circle cx="236" cy="166" r="5" fill="#56FFE8" />
+    <circle cx="944" cy="456" r="6" fill="#57B8FF" />
+    <circle cx="1034" cy="204" r="4" fill="#56FFE8" />
+    <circle cx="286" cy="406" r="4" fill="#57B8FF" />
+  </g>
+  <text x="120" y="180" fill="#56FFE8" font-family="Inter, Arial, sans-serif" font-size="22" letter-spacing="4">N-QUEEN SOLVER PLATFORM</text>
+  <text x="120" y="268" fill="#EAF5FF" font-family="Inter, Arial, sans-serif" font-size="88" font-weight="700">QueenMind</text>
+  <text x="120" y="324" fill="#A9BDD1" font-family="Inter, Arial, sans-serif" font-size="30">Classic • Optimized • Bitmask • Parallel</text>
+  <text x="120" y="370" fill="#7FA2C2" font-family="Inter, Arial, sans-serif" font-size="26">Benchmark Lab • Challenge Lab • Insights Dashboard</text>
+  <defs>
+    <linearGradient id="panel" x1="96" y1="128" x2="1104" y2="502" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0A1024" />
+      <stop offset="1" stop-color="#0B1530" />
+    </linearGradient>
+    <radialGradient id="bgGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1050 68) rotate(135) scale(730 980)">
+      <stop stop-color="#0DB2A5" stop-opacity="0.34" />
+      <stop offset="1" stop-color="#0A1022" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+</svg>

@@ -78,7 +78,7 @@ export const aboutPageContent = {
   ] as const,
   hero: {
     pageHeading: "Behind QueenMind",
-    creatorName: "QueenMind Creator",
+    creatorName: "Abhinav Sharma",
     creatorTitle: "Algorithm Product Engineer",
     tagline: "Designing interfaces where search, speed, and strategy feel alive.",
     mission:
@@ -109,8 +109,7 @@ export const aboutPageContent = {
   creatorProfile: {
     sectionTitle: "Creator Profile",
     sectionDescription: "Personal product-lab identity focused on craft, clarity, and algorithm storytelling.",
-    avatarPlaceholderLabel: "QM",
-    name: "QueenMind Creator",
+    name: "Abhinav Sharma",
     role: "Full-Stack Developer, UI Designer, and Solver Architect",
     bio:
       "I build experimental systems where deep computer science concepts are translated into polished, high-trust product experiences with premium interaction quality.",
@@ -135,7 +134,7 @@ export const aboutPageContent = {
     identityStatement: "Intelligent algorithm exploration, engineered as a premium product experience.",
     founderQuote: "I want algorithms to feel understandable, observable, and inspiring, not abstract and distant.",
     signature: {
-      name: "QueenMind Creator",
+      name: "Abhinav Sharma",
       role: "Founder / Product Engineer"
     },
     pillars: [
@@ -330,10 +329,9 @@ export const aboutPageContent = {
       },
       {
         label: "Portfolio",
-        href: "/audio/makabhosda_aag.mp3",
+        href: "/contact",
         icon: "globe",
-        description: "Play the portfolio theme track.",
-        playAudio: true,
+        description: "Project contact and collaboration channels.",
         variant: "outline"
       },
       {
@@ -346,10 +344,9 @@ export const aboutPageContent = {
       },
       {
         label: "Resume",
-        href: "/audio/makabhosda_aag.mp3",
+        href: "/terms",
         icon: "book-open-text",
-        description: "Play the resume theme track.",
-        playAudio: true,
+        description: "Professional and platform usage terms.",
         variant: "outline"
       }
     ] as AboutLink[]
