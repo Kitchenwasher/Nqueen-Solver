@@ -92,7 +92,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body
         className={cn(
-          "min-h-screen bg-background font-sans text-foreground antialiased",
+          "flex min-h-screen flex-col bg-background font-sans text-foreground antialiased",
           sora.variable,
           spaceGrotesk.variable
         )}
@@ -102,8 +102,10 @@ export default function RootLayout({
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
         />
-        <PersistentLabsHost />
-        {children}
+        <div className="flex-1">
+          <PersistentLabsHost />
+          {children}
+        </div>
         <footer className="relative z-10 border-t border-border/55 bg-background/45 backdrop-blur-xl">
           <div className="mx-auto flex w-full max-w-[2100px] flex-col gap-2 px-4 py-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <p>
