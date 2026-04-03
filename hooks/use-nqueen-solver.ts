@@ -46,6 +46,7 @@ type UseNQueenSolverOptions = {
   boardSize: BoardSize;
   setQueenCells: Dispatch<SetStateAction<string[]>>;
   setActiveCell: Dispatch<SetStateAction<CellCoordinate | null>>;
+  isUiVisible?: boolean;
   constraints?: SolverConstraints;
 };
 
@@ -60,7 +61,10 @@ export type ParallelWorkerLiveState = {
 
 const DEFAULT_SPEED_MS = 130;
 const MAX_LOGS = 200;
-const UI_FLUSH_INTERVAL_MS = 16;
+const ACTIVE_UI_FLUSH_INTERVAL_MS = 16;
+const BACKGROUND_UI_FLUSH_INTERVAL_MS = 120;
+const ACTIVE_ELAPSED_INTERVAL_MS = 120;
+const BACKGROUND_ELAPSED_INTERVAL_MS = 420;
 const DEFAULT_SYMMETRY_STATS: SymmetryStats = {
   active: false,
   rootBranchesTotal: 0,
@@ -171,7 +175,13 @@ function formatFirstSolutionPath(queensByRow: number[]) {
  * - Writes board state through provided setters (`setQueenCells`, `setActiveCell`)
  * - Coordinates asynchronous solver runs and worker updates
  */
-export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, constraints }: UseNQueenSolverOptions) {
+export function useNQueenSolver({
+  boardSize,
+  setQueenCells,
+  setActiveCell,
+  isUiVisible = true,
+  constraints
+}: UseNQueenSolverOptions) {
   const [phase, setPhase] = useState<SolverPhase>("idle");
   const [algorithm, setAlgorithm] = useState<SolverAlgorithm>("classic");
   const [mode, setMode] = useState<SolverMode>("auto");
@@ -224,6 +234,9 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   const parallelProgressRef = useRef<ParallelProgressSnapshot | null>(null);
   const parallelFlushHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const allSolutionsProgressAtRef = useRef(0);
+  const uiFlushIntervalRef = useRef(ACTIVE_UI_FLUSH_INTERVAL_MS);
+  const pendingLogsRef = useRef<SolverLogEntry[]>([]);
+  const logFlushHandleRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isBusy = useMemo(() => ["solving", "paused", "stepping", "enumerating"].includes(phase), [phase]);
   const totalStoredSolutions = storedSolutions.length;
@@ -236,25 +249,42 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   /**
    * Pushes a new log entry (newest-first) and keeps only the latest MAX_LOGS rows.
    */
+  const flushQueuedLogs = useCallback(() => {
+    if (pendingLogsRef.current.length === 0) {
+      return;
+    }
+
+    const queued = pendingLogsRef.current.splice(0, pendingLogsRef.current.length);
+    setLogs((previous) => [...queued.reverse(), ...previous].slice(0, MAX_LOGS));
+  }, []);
+
+  const scheduleLogFlush = useCallback(() => {
+    if (logFlushHandleRef.current) {
+      return;
+    }
+
+    logFlushHandleRef.current = setTimeout(() => {
+      logFlushHandleRef.current = null;
+      flushQueuedLogs();
+    }, uiFlushIntervalRef.current);
+  }, [flushQueuedLogs]);
+
   const appendLog = useCallback(
     (eventType: SolverEventType, message: string, row: number | null, col: number | null) => {
       logStepRef.current += 1;
       const step = logStepRef.current;
       const runId = runIdRef.current;
-
-      setLogs((previous) => {
-        const next: SolverLogEntry = {
-          id: `${runId}-${step}-${eventType}`,
-          step,
-          eventType,
-          message,
-          row,
-          col
-        };
-        return [next, ...previous].slice(0, MAX_LOGS);
+      pendingLogsRef.current.push({
+        id: `${runId}-${step}-${eventType}`,
+        step,
+        eventType,
+        message,
+        row,
+        col
       });
+      scheduleLogFlush();
     },
-    []
+    [scheduleLogFlush]
   );
 
   const flushFrameSnapshot = useCallback(() => {
@@ -298,7 +328,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     frameFlushHandleRef.current = setTimeout(() => {
       frameFlushHandleRef.current = null;
       flushFrameSnapshot();
-    }, UI_FLUSH_INTERVAL_MS);
+    }, uiFlushIntervalRef.current);
   }, [flushFrameSnapshot]);
 
   const flushParallelProgress = useCallback(() => {
@@ -355,7 +385,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     parallelFlushHandleRef.current = setTimeout(() => {
       parallelFlushHandleRef.current = null;
       flushParallelProgress();
-    }, UI_FLUSH_INTERVAL_MS);
+    }, uiFlushIntervalRef.current);
   }, [flushParallelProgress]);
 
   const releaseStepWaiter = useCallback(() => {
@@ -410,6 +440,11 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
       clearTimeout(parallelFlushHandleRef.current);
       parallelFlushHandleRef.current = null;
     }
+    if (logFlushHandleRef.current) {
+      clearTimeout(logFlushHandleRef.current);
+      logFlushHandleRef.current = null;
+    }
+    pendingLogsRef.current = [];
     allSolutionsProgressAtRef.current = 0;
     startedAtRef.current = null;
     logStepRef.current = 0;
@@ -649,6 +684,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, false, currentRunId);
       flushParallelProgress();
+      flushQueuedLogs();
       if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
         return;
       }
@@ -843,6 +879,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
     if (selectedAlgorithm === "parallel") {
       const parallelResult = await runParallelMode(selectedAlgorithm, true, currentRunId);
       flushParallelProgress();
+      flushQueuedLogs();
       if (!parallelResult || runIdRef.current !== currentRunId || stopRef.current) {
         return;
       }
@@ -918,7 +955,7 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
         }
 
         const now = Date.now();
-        if (now - allSolutionsProgressAtRef.current < UI_FLUSH_INTERVAL_MS) {
+        if (now - allSolutionsProgressAtRef.current < uiFlushIntervalRef.current) {
           return;
         }
         allSolutionsProgressAtRef.current = now;
@@ -1084,6 +1121,10 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
   }, [algorithm, mode]);
 
   useEffect(() => {
+    uiFlushIntervalRef.current = isUiVisible ? ACTIVE_UI_FLUSH_INTERVAL_MS : BACKGROUND_UI_FLUSH_INTERVAL_MS;
+  }, [isUiVisible]);
+
+  useEffect(() => {
     if (startedAtRef.current === null) {
       return;
     }
@@ -1099,12 +1140,12 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
       if (startedAtRef.current) {
         setElapsedMs(Date.now() - startedAtRef.current);
       }
-    }, 120);
+    }, isUiVisible ? ACTIVE_ELAPSED_INTERVAL_MS : BACKGROUND_ELAPSED_INTERVAL_MS);
 
     return () => {
       clearInterval(timer);
     };
-  }, [phase]);
+  }, [isUiVisible, phase]);
 
   useEffect(() => {
     return () => {
@@ -1118,8 +1159,13 @@ export function useNQueenSolver({ boardSize, setQueenCells, setActiveCell, const
         clearTimeout(parallelFlushHandleRef.current);
         parallelFlushHandleRef.current = null;
       }
+      if (logFlushHandleRef.current) {
+        clearTimeout(logFlushHandleRef.current);
+        logFlushHandleRef.current = null;
+      }
       frameSnapshotRef.current = null;
       parallelProgressRef.current = null;
+      pendingLogsRef.current = [];
       releaseStepWaiter();
       runIdRef.current += 1;
     };

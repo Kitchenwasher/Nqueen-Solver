@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import type { AlgorithmPerformanceMap, SolverAnalytics, StrategyPerformanceMap } from "@/types/dashboard";
 
 type SolverTelemetryState = {
@@ -7,6 +9,7 @@ type SolverTelemetryState = {
   performance: AlgorithmPerformanceMap;
   strategyPerformance: StrategyPerformanceMap;
 };
+type EqualityFn<T> = (left: T, right: T) => boolean;
 
 const STORAGE_KEY = "queenmind-solver-telemetry";
 
@@ -128,4 +131,28 @@ export function setSolverTelemetrySnapshot(next: SolverTelemetryState) {
   for (const listener of listeners) {
     listener();
   }
+}
+
+/**
+ * Selector-style subscription hook to avoid broad rerenders from full-store snapshots.
+ */
+export function useSolverTelemetrySelector<T>(
+  selector: (snapshot: SolverTelemetryState) => T,
+  equalityFn: EqualityFn<T> = Object.is
+) {
+  const selectorRef = useRef(selector);
+  const equalityRef = useRef(equalityFn);
+  selectorRef.current = selector;
+  equalityRef.current = equalityFn;
+
+  const [selected, setSelected] = useState<T>(() => selector(state));
+
+  useEffect(() => {
+    return subscribeSolverTelemetry(() => {
+      const next = selectorRef.current(state);
+      setSelected((previous) => (equalityRef.current(previous, next) ? previous : next));
+    });
+  }, []);
+
+  return selected;
 }

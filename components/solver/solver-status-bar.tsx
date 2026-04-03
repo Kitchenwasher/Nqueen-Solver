@@ -7,6 +7,8 @@ type SolverStatusBarProps = {
   children: React.ReactNode;
 };
 
-export function SolverStatusBar({ className, children }: SolverStatusBarProps) {
+function SolverStatusBarComponent({ className, children }: SolverStatusBarProps) {
   return <div className={cn("flex flex-wrap gap-2", className)}>{children}</div>;
 }
+
+export const SolverStatusBar = React.memo(SolverStatusBarComponent);

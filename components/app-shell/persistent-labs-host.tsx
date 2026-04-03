@@ -40,19 +40,19 @@ export function PersistentLabsHost() {
   return (
     <div className="min-h-screen">
       <div className={cn(matchesDashboard(resolvedPathname) ? "block" : "hidden")}>
-        <DashboardShell />
+        <DashboardShell isVisible={matchesDashboard(resolvedPathname)} />
       </div>
 
       <div className={cn(matchesBenchmark(resolvedPathname) ? "block" : "hidden")}>
-        <BenchmarkLabShell />
+        <BenchmarkLabShell isVisible={matchesBenchmark(resolvedPathname)} />
       </div>
 
       <div className={cn(matchesChallenges(resolvedPathname) ? "block" : "hidden")}>
-        <ChallengeLabShell />
+        <ChallengeLabShell isVisible={matchesChallenges(resolvedPathname)} />
       </div>
 
       <div className={cn(matchesInsights(resolvedPathname) ? "block" : "hidden")}>
-        <InsightsPageShell />
+        <InsightsPageShell isVisible={matchesInsights(resolvedPathname)} />
       </div>
     </div>
   );

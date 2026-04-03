@@ -6,7 +6,11 @@ import { ChessboardPanel } from "@/components/dashboard/chessboard-panel";
 import { DashboardAppShell } from "@/components/dashboard/dashboard-app-shell";
 import { Button } from "@/components/ui/button";
 
-export function ChallengeLabShell() {
+type ChallengeLabShellProps = {
+  isVisible?: boolean;
+};
+
+export function ChallengeLabShell({ isVisible = true }: ChallengeLabShellProps) {
   return (
     <DashboardAppShell
       page="challenges"
@@ -34,7 +38,7 @@ export function ChallengeLabShell() {
       solverLiveLabel="Challenge Live"
     >
       <div className="mx-auto w-full max-w-[1280px]">
-        <ChessboardPanel defaultAdvancedOpen surface="challenge" />
+        <ChessboardPanel defaultAdvancedOpen surface="challenge" isVisible={isVisible} />
       </div>
     </DashboardAppShell>
   );

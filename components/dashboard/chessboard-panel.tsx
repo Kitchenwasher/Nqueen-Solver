@@ -58,6 +58,7 @@ type ChessboardPanelProps = {
   focusMode?: boolean;
   defaultAdvancedOpen?: boolean;
   surface?: "main" | "challenge";
+  isVisible?: boolean;
   onAnalyticsChange?: (
     analytics: SolverAnalytics,
     performance: AlgorithmPerformanceMap,
@@ -85,6 +86,7 @@ export function ChessboardPanel({
   focusMode = false,
   defaultAdvancedOpen = false,
   surface = "main",
+  isVisible = true,
   onAnalyticsChange
 }: ChessboardPanelProps) {
   const [boardSize, setBoardSize] = useState<BoardSize>(8);
@@ -102,6 +104,7 @@ export function ChessboardPanel({
   const [validationOrigin, setValidationOrigin] = useState<ValidationOrigin>("live");
   const [isSearchTreeVisible, setIsSearchTreeVisible] = useState(false);
   const [heatmapMode, setHeatmapMode] = useState<HeatmapMode>("off");
+  const [inspectorTab, setInspectorTab] = useState<"log" | "tree" | "heatmap">("log");
   const hydratedRef = useRef(false);
   const workspaceSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const analyticsPublishTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,6 +118,7 @@ export function ChessboardPanel({
     boardSize,
     setQueenCells,
     setActiveCell,
+    isUiVisible: isVisible,
     constraints: {
       blockedCells,
       forbiddenCells,
@@ -268,7 +272,7 @@ export function ChessboardPanel({
       workspaceSaveTimerRef.current = null;
     }
 
-    const delay = solver.isBusy ? 600 : 150;
+    const delay = isVisible ? (solver.isBusy ? 600 : 150) : 1200;
     workspaceSaveTimerRef.current = setTimeout(() => {
       saveSolverWorkspaceSnapshot({
         version: 1,
@@ -323,7 +327,8 @@ export function ChessboardPanel({
     solver.speedMs,
     solver.splitDepthMode,
     solver.symmetryEnabled,
-    solver.isBusy
+    solver.isBusy,
+    isVisible
   ]);
 
   useEffect(() => {
@@ -341,17 +346,19 @@ export function ChessboardPanel({
       return;
     }
 
+    const analyticsCadenceMs = isVisible ? (solver.isBusy ? 120 : 80) : 260;
     analyticsPublishTimerRef.current = setTimeout(() => {
       const pending = pendingAnalyticsRef.current;
       if (!pending) {
         analyticsPublishTimerRef.current = null;
         return;
       }
+
       onAnalyticsChange(pending.analytics, pending.performance, pending.strategyPerformance);
       pendingAnalyticsRef.current = null;
       analyticsPublishTimerRef.current = null;
-    }, 80);
-  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy]);
+    }, analyticsCadenceMs);
+  }, [onAnalyticsChange, solver.analytics, solver.performanceByAlgorithm, solver.performanceByStrategy, solver.isBusy, isVisible]);
 
   useEffect(() => {
     return () => {
@@ -1321,7 +1328,15 @@ export function ChessboardPanel({
               focusMode && "bg-slate-950/45"
             )}
           >
-            <Tabs defaultValue="log" className="w-full">
+              <Tabs
+                value={inspectorTab}
+                onValueChange={(value) => {
+                  if (value === "log" || value === "tree" || value === "heatmap") {
+                    setInspectorTab(value);
+                  }
+                }}
+                className="w-full"
+              >
               <TabsList className="grid w-full grid-cols-3">
                 <TabsTrigger value="log">Live Log</TabsTrigger>
                 <TabsTrigger value="tree">Search Tree</TabsTrigger>
@@ -1334,7 +1349,9 @@ export function ChessboardPanel({
                     {solver.logs.length === 0 && (
                       <p className="text-xs text-muted-foreground">Run the solver to stream step-by-step log events.</p>
                     )}
-                    {solver.logs.map((entry) => (
+                    {isVisible &&
+                      inspectorTab === "log" &&
+                      solver.logs.map((entry) => (
                       <motion.article
                         key={entry.id}
                         layout
@@ -1353,13 +1370,21 @@ export function ChessboardPanel({
                         </div>
                         <p className="mt-1 text-xs text-foreground">{entry.message}</p>
                       </motion.article>
-                    ))}
+                      ))}
+                    {!isVisible && inspectorTab === "log" && solver.logs.length > 0 && (
+                      <p className="text-xs text-muted-foreground">Live log updates continue in background while this page is hidden.</p>
+                    )}
                   </div>
                 </ScrollArea>
               </TabsContent>
 
               <TabsContent value="tree" className="mt-3">
-                <SearchTreePanel visible={isSearchTreeVisible} logs={solver.logs} phase={solver.phase} boardSize={boardSize} />
+                <SearchTreePanel
+                  visible={isSearchTreeVisible && inspectorTab === "tree" && isVisible}
+                  logs={inspectorTab === "tree" && isVisible ? solver.logs : []}
+                  phase={solver.phase}
+                  boardSize={boardSize}
+                />
               </TabsContent>
 
               <TabsContent value="heatmap" className="mt-3 space-y-3">

@@ -7,6 +7,8 @@ type SolverControlsProps = {
   children: React.ReactNode;
 };
 
-export function SolverControls({ className, children }: SolverControlsProps) {
+function SolverControlsComponent({ className, children }: SolverControlsProps) {
   return <div className={cn("space-y-2 rounded-xl border border-border/50 bg-background/35 p-3", className)}>{children}</div>;
 }
+
+export const SolverControls = React.memo(SolverControlsComponent);

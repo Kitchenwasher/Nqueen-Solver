@@ -69,7 +69,11 @@ function sortResults(results: BenchmarkCaseResult[]) {
   });
 }
 
-export function BenchmarkLabShell() {
+type BenchmarkLabShellProps = {
+  isVisible?: boolean;
+};
+
+export function BenchmarkLabShell({ isVisible = true }: BenchmarkLabShellProps) {
   const [activeTab, setActiveTab] = useState<"benchmark" | "stress">("benchmark");
   const [selectedBoardSizes, setSelectedBoardSizes] = useState<BoardSize[]>([8, 10, 12]);
   const [selectedAlgorithms, setSelectedAlgorithms] = useState<SolverAlgorithm[]>([...ALGORITHMS]);
@@ -85,6 +89,7 @@ export function BenchmarkLabShell() {
   const [statusText, setStatusText] = useState<string>("Ready");
   const [benchmarkProgressValue, setBenchmarkProgressValue] = useState(0);
   const stopRef = useRef(false);
+  const benchmarkProgressTickRef = useRef(0);
   const [stressAlgorithm, setStressAlgorithm] = useState<SolverAlgorithm>("parallel");
   const [stressMinBoard, setStressMinBoard] = useState<BoardSize>(8);
   const [stressMaxBoard, setStressMaxBoard] = useState<BoardSize>(16);
@@ -98,6 +103,7 @@ export function BenchmarkLabShell() {
   const [stressProgressText, setStressProgressText] = useState("");
   const [stressProgressValue, setStressProgressValue] = useState(0);
   const stressStopRef = useRef(false);
+  const stressProgressTickRef = useRef(0);
 
   const toggleBoardSize = (size: BoardSize) => {
     setSelectedBoardSizes((previous) => {
@@ -152,6 +158,13 @@ export function BenchmarkLabShell() {
         {
           shouldStop: () => stopRef.current,
           onProgress: (progress) => {
+            const now = Date.now();
+            const progressCadenceMs = isVisible ? 90 : 260;
+            if (now - benchmarkProgressTickRef.current < progressCadenceMs) {
+              return;
+            }
+            benchmarkProgressTickRef.current = now;
+
             const label = ALGORITHM_LABELS[progress.currentAlgorithm];
             setProgressText(
               `${progress.completedRuns}/${progress.totalRuns} | N=${progress.currentBoardSize} | ${label} | Run ${progress.currentRun}`
@@ -653,6 +666,13 @@ export function BenchmarkLabShell() {
                         {
                           shouldStop: () => stressStopRef.current,
                           onProgress: (progress) => {
+                            const now = Date.now();
+                            const progressCadenceMs = isVisible ? 90 : 260;
+                            if (now - stressProgressTickRef.current < progressCadenceMs) {
+                              return;
+                            }
+                            stressProgressTickRef.current = now;
+
                             setStressProgressText(
                               `N=${progress.currentBoardSize} | elapsed ${formatMs(progress.elapsedMs)} | nodes ${formatInteger(progress.totalNodesExplored)}`
                             );

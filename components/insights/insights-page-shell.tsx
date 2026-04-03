@@ -1,26 +1,26 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect } from "react";
 import { DashboardAppShell } from "@/components/dashboard/dashboard-app-shell";
 import { InsightsRail } from "@/components/insights/insights-rail";
 import { Button } from "@/components/ui/button";
-import {
-  getSolverTelemetrySnapshot,
-  initializeSolverTelemetryStore,
-  subscribeSolverTelemetry
-} from "@/lib/solver-telemetry-store";
+import { initializeSolverTelemetryStore, useSolverTelemetrySelector } from "@/lib/solver-telemetry-store";
 
-export function InsightsPageShell() {
+type InsightsPageShellProps = {
+  isVisible?: boolean;
+};
+
+export function InsightsPageShell({ isVisible: _isVisible = true }: InsightsPageShellProps) {
+  void _isVisible;
+
   useEffect(() => {
     initializeSolverTelemetryStore();
   }, []);
 
-  const telemetry = useSyncExternalStore(
-    subscribeSolverTelemetry,
-    getSolverTelemetrySnapshot,
-    getSolverTelemetrySnapshot
-  );
+  const analytics = useSolverTelemetrySelector((snapshot) => snapshot.analytics);
+  const performance = useSolverTelemetrySelector((snapshot) => snapshot.performance);
+  const strategyPerformance = useSolverTelemetrySelector((snapshot) => snapshot.strategyPerformance);
 
   return (
     <DashboardAppShell
@@ -49,9 +49,9 @@ export function InsightsPageShell() {
     >
       <div id="insights-section" className="w-full max-w-[1200px]">
         <InsightsRail
-          analytics={telemetry.analytics}
-          performance={telemetry.performance}
-          strategyPerformance={telemetry.strategyPerformance}
+          analytics={analytics}
+          performance={performance}
+          strategyPerformance={strategyPerformance}
           fullPage
         />
       </div>

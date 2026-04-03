@@ -14,7 +14,7 @@ import {
   Timer,
   Zap
 } from "lucide-react";
-import type { ComponentType } from "react";
+import { memo, type ComponentType } from "react";
 import { motion } from "framer-motion";
 
 import { StatusPulse } from "@/components/effects/status-pulse";
@@ -101,7 +101,7 @@ function CounterTile({ label, value, icon: Icon }: { label: string; value: strin
   );
 }
 
-export function InsightsSidebar({
+function InsightsSidebarComponent({
   className,
   analytics,
   performance,
@@ -517,3 +517,5 @@ export function InsightsSidebar({
     </TooltipProvider>
   );
 }
+
+export const InsightsSidebar = memo(InsightsSidebarComponent);
