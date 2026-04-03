@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="24" y1="20" x2="220" y2="236" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#071225"/>
+      <stop offset="1" stop-color="#031028"/>
+    </linearGradient>
+    <linearGradient id="strokeGrad" x1="52" y1="52" x2="204" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#52FFE8"/>
+      <stop offset="1" stop-color="#37B8FF"/>
+    </linearGradient>
+    <radialGradient id="glowGrad" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(146 106) rotate(130) scale(132)">
+      <stop stop-color="#52FFE8" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#52FFE8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect x="16" y="16" width="224" height="224" rx="52" fill="url(#bgGrad)"/>
+  <rect x="16.75" y="16.75" width="222.5" height="222.5" rx="51.25" stroke="#2A3D66" stroke-opacity="0.7" stroke-width="1.5"/>
+  <circle cx="152" cy="106" r="94" fill="url(#glowGrad)"/>
+
+  <path
+    d="M74 180L96 96L128 136L160 96L182 180H74Z"
+    stroke="url(#strokeGrad)"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <path
+    d="M98 180H158"
+    stroke="url(#strokeGrad)"
+    stroke-width="11"
+    stroke-linecap="round"
+  />
+  <circle cx="96" cy="82" r="9" fill="#52FFE8"/>
+  <circle cx="128" cy="66" r="9" fill="#52FFE8"/>
+  <circle cx="160" cy="82" r="9" fill="#52FFE8"/>
+
+  <path d="M181 64L197 80L181 96" stroke="#52FFE8" stroke-opacity="0.9" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M197 80H169" stroke="#52FFE8" stroke-opacity="0.9" stroke-width="6" stroke-linecap="round"/>
+</svg>

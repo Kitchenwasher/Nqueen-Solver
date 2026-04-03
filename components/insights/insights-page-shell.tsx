@@ -38,6 +38,9 @@ export function InsightsPageShell({ isVisible: _isVisible = true }: InsightsPage
           <Button asChild variant="outline" size="sm">
             <Link href="/challenges">Open Challenge Lab</Link>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/about">Open About</Link>
+          </Button>
         </div>
       }
       activeSection="insights"

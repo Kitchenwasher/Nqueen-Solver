@@ -105,6 +105,10 @@ function AboutLinkButton({ item, size = "default" }: { item: AboutLink; size?: "
 
 function ContactLinkCard({ item, index }: { item: AboutLink; index: number }) {
   const ItemIcon = iconMap[item.icon];
+  const handlePlayAudio = () => {
+    const audio = new Audio(item.href);
+    void audio.play();
+  };
   const content = (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -129,6 +133,14 @@ function ContactLinkCard({ item, index }: { item: AboutLink; index: number }) {
       </Card>
     </motion.div>
   );
+
+  if (item.playAudio) {
+    return (
+      <button type="button" onClick={handlePlayAudio} className="block h-full text-left">
+        {content}
+      </button>
+    );
+  }
 
   if (item.external) {
     return (

@@ -252,6 +252,9 @@ export function BenchmarkLabShell({ isVisible = true }: BenchmarkLabShellProps) 
                     <Button asChild variant="outline" size="sm">
                       <Link href="/insights">Open Insights</Link>
                     </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href="/about">Open About</Link>
+                    </Button>
                   </div>
                   <TabsList className="grid w-[300px] grid-cols-2 border-primary/20 bg-background/55 backdrop-blur-sm">
                     <TabsTrigger value="benchmark" className="font-medium">

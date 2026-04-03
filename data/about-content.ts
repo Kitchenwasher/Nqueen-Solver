@@ -31,6 +31,7 @@ export type AboutLink = {
   href: string;
   icon: AboutIconKey;
   description?: string;
+  playAudio?: boolean;
   external?: boolean;
   variant?: "default" | "outline" | "secondary";
 };
@@ -88,7 +89,8 @@ export const aboutPageContent = {
       "Performance-First Experimentation"
     ] as const,
     ctas: [
-      { label: "View Project", href: "https://github.com/Kitchenwasher", icon: "arrow-up-right", external: true, variant: "default" },
+      { label: "View Project", href: "/", icon: "arrow-up-right", variant: "default" },
+      { label: "GitHub Repo", href: "https://github.com/Kitchenwasher", icon: "github", external: true, variant: "outline" },
       { label: "Contact", href: "mailto:abhinasharma2005@gmail.com", icon: "mail", external: true, variant: "outline" }
     ] as AboutLink[],
     identityPanel: {
@@ -328,10 +330,10 @@ export const aboutPageContent = {
       },
       {
         label: "Portfolio",
-        href: "https://example.com/",
+        href: "/audio/makabhosda_aag.mp3",
         icon: "globe",
-        description: "Selected product work and case-study highlights.",
-        external: true,
+        description: "Play the portfolio theme track.",
+        playAudio: true,
         variant: "outline"
       },
       {
@@ -344,10 +346,10 @@ export const aboutPageContent = {
       },
       {
         label: "Resume",
-        href: "https://example.com/resume",
+        href: "/audio/makabhosda_aag.mp3",
         icon: "book-open-text",
-        description: "Experience snapshot and technical background.",
-        external: true,
+        description: "Play the resume theme track.",
+        playAudio: true,
         variant: "outline"
       }
     ] as AboutLink[]

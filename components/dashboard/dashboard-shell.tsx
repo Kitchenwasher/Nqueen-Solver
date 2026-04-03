@@ -82,6 +82,9 @@ export function DashboardShell({ isVisible = true }: DashboardShellProps) {
           <Button asChild variant="outline" size="sm">
             <Link href="/insights">Open Insights</Link>
           </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/about">Open About</Link>
+          </Button>
         </div>
       }
       activeSection={activeSection}
